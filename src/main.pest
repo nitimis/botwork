@@ -1,0 +1,16 @@
+WHITESPACE =  _{ " " | "\t" }
+oduraja    =   { SOI ~ ( statement | NEWLINE )* ~ EOI }
+statement  =   { fragment ~ ( parameter | fragment )* }
+parameter  =   { "{" ~ expr ~ "}" }
+fragment   =   { LETTER+ }
+int        =  @{ ( ASCII_NONZERO_DIGIT ~ ASCII_DIGIT+ | ASCII_DIGIT ) }
+program    =   { SOI ~ expr ~ EOI }
+expr       =   { prefix* ~ primary ~ ( operator ~ prefix* ~ primary )* }
+operator   =  _{ add | sub | mul | div }
+add        =   { "+" } 
+sub        =   { "-" } 
+mul        =   { "*" } 
+div        =   { "/" } 
+prefix     =  _{ neg }
+neg        =   { "-" } // Negation
+primary    =  _{ int | "(" ~ expr ~ ")" }
