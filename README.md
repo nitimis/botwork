@@ -17,7 +17,7 @@ I wanted:
 3. Extendible with Rust, Python (via PyO3), JavaScript (via neon), etc
 4. Proper language defnition with PEG parser.
 5. LSP & TreeSitter Support. 
-5. Most of all, to have fun building something that might be useful for others.
+5. Most of all, to have fun building something that I can introduce to my kids.
 
 # What does "Odu Raja" mean?
 
