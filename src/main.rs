@@ -12,47 +12,30 @@ use pest::{
     pratt_parser::{Assoc::*, Op, PrattParser},
     Parser,
 };
-use std::io::{stdin, stdout, Write};
+use std::fs::read_to_string;
 
-fn parse_to_str(pairs: Pairs<Rule>, pratt: &PrattParser<Rule>) -> String {
-    pratt
-        .map_primary(|primary| match primary.as_rule() {
-            Rule::int => primary.as_str().to_owned(),
-            Rule::expr => parse_to_str(primary.into_inner(), pratt),
-            _ => unreachable!(),
-        })
-        .map_prefix(|op, rhs| match op.as_rule() {
-            Rule::neg => format!("(-{})", rhs),
-            _ => unreachable!(),
-        })
-        .map_postfix(|lhs, op| match op.as_rule() {
-            Rule::fac => format!("({}!)", lhs),
-            _ => unreachable!(),
-        })
-        .map_infix(|lhs, op, rhs| match op.as_rule() {
-            Rule::add => format!("({}+{})", lhs, rhs),
-            Rule::sub => format!("({}-{})", lhs, rhs),
-            Rule::mul => format!("({}*{})", lhs, rhs),
-            Rule::div => format!("({}/{})", lhs, rhs),
-            Rule::pow => format!("({}^{})", lhs, rhs),
-            _ => unreachable!(),
-        })
-        .parse(pairs)
+/*
+enum Atom {
+    Int,
+    Float,
+    String,
 }
 
-fn parse_to_i32(pairs: Pairs<Rule>, pratt: &PrattParser<Rule>) -> i128 {
+enum Value {
+    Atom(Atom),
+    List(Box<Value>),
+    Dict(Box<Value>),
+}
+
+fn oduraja(pairs: Pairs<Rule>, pratt: &PrattParser<Rule>) {
     pratt
         .map_primary(|primary| match primary.as_rule() {
-            Rule::int => primary.as_str().parse().unwrap(),
-            Rule::expr => parse_to_i32(primary.into_inner(), pratt),
+            Rule::int => Value::Atom(primary.as_str().parse::<i32>().unwrap()),
+            Rule::expression => Value::Atom(oduraja(primary.into_inner(), pratt)),
             _ => unreachable!(),
         })
         .map_prefix(|op, rhs| match op.as_rule() {
             Rule::neg => -rhs,
-            _ => unreachable!(),
-        })
-        .map_postfix(|lhs, op| match op.as_rule() {
-            Rule::fac => (1..lhs + 1).product(),
             _ => unreachable!(),
         })
         .map_infix(|lhs, op, rhs| match op.as_rule() {
@@ -60,50 +43,35 @@ fn parse_to_i32(pairs: Pairs<Rule>, pratt: &PrattParser<Rule>) -> i128 {
             Rule::sub => lhs - rhs,
             Rule::mul => lhs * rhs,
             Rule::div => lhs / rhs,
-            Rule::pow => (1..rhs + 1).map(|_| lhs).product(),
             _ => unreachable!(),
         })
         .parse(pairs)
 }
+*/
 
-fn main() {
-    let pratt = PrattParser::new()
+fn oduraja(tree: &mut Pairs<Rule>) {
+    dbg!(&tree);
+    let _pairs = tree
+        .next()
+        .unwrap()
+        .into_inner() // inner of program
+        .next()
+        .unwrap()
+        .into_inner(); // inner of expr
+    let _pratt = PrattParser::new()
         .op(Op::infix(Rule::add, Left) | Op::infix(Rule::sub, Left))
         .op(Op::infix(Rule::mul, Left) | Op::infix(Rule::div, Left))
-        .op(Op::infix(Rule::pow, Right))
-        .op(Op::postfix(Rule::fac))
         .op(Op::prefix(Rule::neg));
+}
+fn main() {
+    let source = read_to_string("examples/01-basics.oduraja").unwrap();
 
-    let stdin = stdin();
-    let mut stdout = stdout();
-
-    loop {
-        let source = {
-            print!("> ");
-            let _ = stdout.flush();
-            let mut input = String::new();
-            let _ = stdin.read_line(&mut input);
-            input.trim().to_string()
-        };
-
-        let pairs = match parser::Parser::parse(Rule::program, &source) {
-            Ok(mut parse_tree) => {
-                parse_tree
-                    .next()
-                    .unwrap()
-                    .into_inner() // inner of program
-                    .next()
-                    .unwrap()
-                    .into_inner() // inner of expr
-            }
-            Err(err) => {
-                println!("Failed parsing input: {:}", err);
-                continue;
-            }
-        };
-
-        print!("{} => ", source);
-        print!("{} => ", parse_to_str(pairs.clone(), &pratt));
-        println!("{}", parse_to_i32(pairs.clone(), &pratt));
-    }
+    match parser::Parser::parse(Rule::oduraja, &source) {
+        Ok(mut tree) => {
+            oduraja(&mut tree);
+        }
+        Err(err) => {
+            println!("Failed parsing input: {:}", err);
+        }
+    };
 }
