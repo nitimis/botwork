@@ -1,6 +1,6 @@
 # oduraja
 
-Odu Raja is a single-binary, generic and open-source automation framework for acceptance testing, acceptance test driven development (ATDD), and robotic process automation (RPA). The syntax is basically plain text with parameters. Easily extendible with Rust &amp; Python. An efficient, fast alternative to Robot Framework.
+Odu Raja is a single-binary, generic and open-source automation framework for acceptance testing, acceptance test driven development (ATDD), and robotic process automation (RPA). The syntax is basically plain text with parameters. Easily extendible with Rust, Python & JavaScript. An efficient, fast alternative to Robot Framework.
 
 # Why Odu Raja?
 
@@ -15,5 +15,10 @@ I wanted:
 1. An efficient, fast, single-binary tool.
 2. An even more simpler syntax than RobotFramework.
 3. Extendible with Rust, Python (via PyO3), JavaScript (via neon), etc
-4. Proper language defnition with PEG grammar
-5. Most of all, to have fun building something that might be useful for others.  
+4. Proper language defnition with PEG parser.
+5. LSP & TreeSitter Support. 
+5. Most of all, to have fun building something that might be useful for others.
+
+# What does "Odu Raja" mean?
+
+It is a statement from the Tamil language. `Odu` means `Run`. While the literal meaning `Raja` is `King`, people often use it to affectionately refer someone as `Dude` or `Buddy`. So `Odu Raja` means `Dude, Run!` or `Buddy, Run!` (Imagine encouraging your beloved friend to run a race).
