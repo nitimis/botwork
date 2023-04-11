@@ -2,9 +2,9 @@ WHITESPACE = _{ (" " | "\t" | "\n" | "\r")+ }
 oduraja    = _{ SOI ~ (stmt_define | stmt_invoke)* ~ EOI }
 reserved   =  { "true" | "false" }
 
-part = { (!("|" | "{" | "}" | "\r" | "\n" | "#") ~ ANY)+ }
-stmt_invoke = { part ~ (param_invoke | part)* }
-stmt_define = { part ~ (param_define | part)* ~ "{" ~ (stmt_define | stmt_invoke )* ~ "}" }
+part         = { (!("|" | "{" | "}" | "\r" | "\n" | "#") ~ ANY)+ }
+stmt_invoke  = { part ~ (param_invoke | part)* }
+stmt_define  = { part ~ (param_define | part)* ~ "{" ~ (stmt_define | stmt_invoke)* ~ "}" }
 param_invoke = { "|" ~ expression ~ "|" }
 param_define = { "|" ~ ident ~ "|" }
 
