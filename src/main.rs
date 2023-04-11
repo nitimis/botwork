@@ -9,7 +9,7 @@ mod parser {
 use parser::Rule;
 use pest::{
     iterators::Pairs,
-    pratt_parser::{Assoc::*, Op, PrattParser},
+    // pratt_parser::{Assoc::*, Op, PrattParser},
     Parser,
 };
 use std::fs::read_to_string;
@@ -58,10 +58,12 @@ fn oduraja(tree: &mut Pairs<Rule>) {
         .next()
         .unwrap()
         .into_inner(); // inner of expr
-    let _pratt = PrattParser::new()
-        .op(Op::infix(Rule::add, Left) | Op::infix(Rule::sub, Left))
-        .op(Op::infix(Rule::mul, Left) | Op::infix(Rule::div, Left))
-        .op(Op::prefix(Rule::neg));
+                       /*
+                       let _pratt = PrattParser::new()
+                           .op(Op::infix(Rule::add, Left) | Op::infix(Rule::sub, Left))
+                           .op(Op::infix(Rule::mul, Left) | Op::infix(Rule::div, Left))
+                           .op(Op::prefix(Rule::neg));
+                       */
 }
 fn main() {
     let source = read_to_string("examples/01-basics.oduraja").unwrap();

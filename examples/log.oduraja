@@ -1,4 +1,0 @@
-log {"log"}
-Log {"Log"}
-LOG {"LOG"}
-Log {5 + 4}

@@ -1,15 +1,68 @@
-WHITESPACE =  _{ " " | "\t" }
-oduraja    =   { SOI ~ ( statement | NEWLINE )* ~ EOI }
-statement  =   { fragment ~ ( parameter | fragment )* }
-parameter  =   { "{" ~ expression ~ "}" }
-fragment   =   { LETTER+ }
-int        =  @{ ( ASCII_NONZERO_DIGIT ~ ASCII_DIGIT+ | ASCII_DIGIT ) }
-expression =   { prefix* ~ primary ~ ( operator ~ prefix* ~ primary )* }
-operator   =  _{ add | sub | mul | div }
-add        =   { "+" } 
-sub        =   { "-" } 
-mul        =   { "*" } 
-div        =   { "/" } 
-prefix     =  _{ neg }
-neg        =   { "-" } // Negation
-primary    =  _{ int | "(" ~ expression ~ ")" }
+WHITESPACE = _{ (" " | "\t" | "\r")+ }
+oduraja    = _{ SOI ~ expression* ~ EOI }
+reserved   =  { "true" | "false" }
+
+COMMENT       = _{ comment_block | comment_line }
+comment_block = @{ "###" ~ (!"###" ~ ANY)* ~ "###" }
+comment_line  = @{ "#" ~ (!("\r" | "\n") ~ ANY)* }
+
+expression        = _{ infix | expression_inner }
+infix             =  { expression_inner ~ (binary_operator ~ expression_inner)+ }
+expression_inner  = _{ dot_path | unary | literal | ident | braced_expression }
+braced_expression = _{ "(" ~ expression ~ ")" }
+unary             =  { unary_operator ~ (literal | dot_path | ident | braced_expression) }
+dot_path          =  { ident ~ ("." ~ (ident | integer))+ }
+literal           = _{ map | array | string | atom | float | integer | boolean }
+array             =  { "[" ~ (expression ~ ("," ~ expression)*)? ~ "]" }
+atom              = @{ ":" ~ ident }
+ident             = @{ !reserved ~ LETTER ~ (LETTER | "_")* }
+
+map      =  { "{" ~ (map_pair ~ ("," ~ map_pair)*)? ~ "}" }
+map_pair =  { (keyword | (expression ~ "=>")) ~ expression }
+keyword  = @{ ident ~ ":" }
+
+integer = @{ NUMBER+ }
+float   = @{ NUMBER+ ~ "." ~ NUMBER+ }
+
+string           =  { string_delimiter ~ string_content ~ string_delimiter }
+string_content   = ${ (string_escape | !(string_delimiter | "\\") ~ ANY)* }
+string_delimiter = _{ "\"" }
+string_escape    = _{ "\\" ~ ("\"" | "\\" | "a" | "b" | "f" | "n" | "r" | "t" | "v") }
+
+exponent              = { "**" }
+multiply              = { "*" }
+divide                = { "/" }
+modulus               = { "%" }
+plus                  = { "+" }
+minus                 = { "-" }
+less_than             = { "<" }
+less_than_or_equal    = { "<=" }
+greater_than          = { ">" }
+greater_than_or_equal = { ">=" }
+not_equal             = { "!=" }
+equal                 = { "==" }
+logical_and           = { "&&" }
+logical_or            = { "||" }
+logical_not           = { "!" }
+
+binary_operator = _{
+    exponent
+  | multiply
+  | divide
+  | modulus
+  | plus
+  | minus
+  | less_than_or_equal
+  | less_than
+  | greater_than_or_equal
+  | greater_than
+  | not_equal
+  | equal
+  | logical_and
+  | logical_or
+}
+unary_operator  = _{ plus | minus | logical_not }
+
+boolean       = { boolean_true | boolean_false }
+boolean_true  = { "true" }
+boolean_false = { "false" }
