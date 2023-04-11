@@ -1,1 +1,9 @@
-1 + ((-0.7 - c) * 4 / false + 3) ** ("as" * -foo.bar) - a.0.b.3 + ([1, 0.7, "as", c, {x:z}] + {a:1, b:0.7, c:"foo", e:f, z:y.2.4.x, d:["a", 2, c, {a:5, b:10}]}) || false && true || !a || -5 + [[[45, c, !f.b.b.0, "foo\"s den"]]]
+###
+Block Comment
+###
+Print |a| asdb {
+    # Inline Comment
+	Log |a| {
+		blee | "foo" |
+	}
+}

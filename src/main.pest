@@ -1,6 +1,12 @@
-WHITESPACE = _{ (" " | "\t" | "\r")+ }
-oduraja    = _{ SOI ~ expression* ~ EOI }
+WHITESPACE = _{ (" " | "\t" | "\n" | "\r")+ }
+oduraja    = _{ SOI ~ (stmt_define | stmt_invoke)* ~ EOI }
 reserved   =  { "true" | "false" }
+
+part = { (!("|" | "{" | "}" | "\r" | "\n" | "#") ~ ANY)+ }
+stmt_invoke = { part ~ (param_invoke | part)* }
+stmt_define = { part ~ (param_define | part)* ~ "{" ~ (stmt_define | stmt_invoke )* ~ "}" }
+param_invoke = { "|" ~ expression ~ "|" }
+param_define = { "|" ~ ident ~ "|" }
 
 COMMENT       = _{ comment_block | comment_line }
 comment_block = @{ "###" ~ (!"###" ~ ANY)* ~ "###" }
@@ -18,7 +24,7 @@ atom              = @{ ":" ~ ident }
 ident             = @{ !reserved ~ LETTER ~ (LETTER | "_")* }
 
 map      =  { "{" ~ (map_pair ~ ("," ~ map_pair)*)? ~ "}" }
-map_pair =  { (keyword | (expression ~ "=>")) ~ expression }
+map_pair =  { keyword ~ expression }
 keyword  = @{ ident ~ ":" }
 
 integer = @{ NUMBER+ }
@@ -27,7 +33,7 @@ float   = @{ NUMBER+ ~ "." ~ NUMBER+ }
 string           =  { string_delimiter ~ string_content ~ string_delimiter }
 string_content   = ${ (string_escape | !(string_delimiter | "\\") ~ ANY)* }
 string_delimiter = _{ "\"" }
-string_escape    = _{ "\\" ~ ("\"" | "\\" | "a" | "b" | "f" | "n" | "r" | "t" | "v") }
+string_escape    = _{ "\\" ~ ("\"" | "\\" | "n") }
 
 exponent              = { "**" }
 multiply              = { "*" }
