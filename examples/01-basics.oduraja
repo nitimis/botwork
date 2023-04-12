@@ -1,11 +1,5 @@
-# INLINE COMMENT
-
-###
-Block Comment
-###
-
-Print |a| asdb {
-    # Inline Comment
-	|a| = |a + 1|
+If |a>b| {
 	Log |a|
+} else if |b>a|{
+	Log |b|
 }

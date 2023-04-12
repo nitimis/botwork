@@ -18,7 +18,7 @@ fn oduraja(pair: Pair<Rule>) {
     match pair.as_rule() {
         Rule::EOI => todo!(),
         Rule::WHITESPACE => todo!(),
-        Rule::NEWLINE => todo!(),
+        //Rule::NEWLINE => todo!(),
         Rule::oduraja => todo!(),
         Rule::reserved => todo!(),
         Rule::part => todo!(),
@@ -69,6 +69,18 @@ fn oduraja(pair: Pair<Rule>) {
         Rule::boolean => todo!(),
         Rule::boolean_true => todo!(),
         Rule::boolean_false => todo!(),
+        Rule::IF => todo!(),
+        Rule::ELSE => todo!(),
+        Rule::FOR => todo!(),
+        Rule::BREAK => todo!(),
+        Rule::RETURN => todo!(),
+        Rule::CONTINUE => todo!(),
+        Rule::WHILE => todo!(),
+        Rule::TRY => todo!(),
+        Rule::CATCH => todo!(),
+        Rule::stmt_if => todo!(),
+        Rule::stmt_else => todo!(),
+        Rule::reserved_parts => todo!(),
     };
     /*
     let _pratt = PrattParser::new()

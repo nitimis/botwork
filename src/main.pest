@@ -1,17 +1,33 @@
 WHITESPACE = _{ (" " | "\t" )+ }
-NEWLINE    = _{"\n" | "\r\n" | "\r"}
+// NEWLINE    = _{"\n" | "\r\n" | "\r"}
 oduraja    = _{ SOI ~ statements* ~ EOI }
 reserved   =  { "true" | "false" | "and" | "or" }
+
+// Special statements. Can cause changes to program behaviour.
+IF  = _{("i"|"I")~("f"|"F")}
+ELSE = _{("e"|"E")~("l"|"L")~("s"|"S")~("e"|"E")}
+FOR = _{("f"|"F")~("o"|"O")~("r"|"R")}
+BREAK = _{("b"|"B")~("r"|"R")~("e"|"E")~("a"|"A")~("k"|"K")}
+RETURN = _{("r"|"R")~("e"|"E")~("t"|"T")~("u"|"U")~("r"|"R")~("n"|"N")}
+CONTINUE = _{("c"|"C")~("o"|"O")~("n"|"N")~("t"|"T")~("i"|"I")~("n"|"N")~("u"|"U")~("e"|"E")}
+WHILE = _{("w"|"W")~("h"|"H")~("i"|"I")~("l"|"L")~("e"|"E")}
+TRY = _{("t"|"T")~("r"|"R")~("y"|"Y")}
+CATCH   = _{("c"|"C")~("a"|"A")~("t"|"T")~("c"|"C")~("h"|"H")} 
+
+reserved_parts = _{IF|ELSE|FOR|BREAK|RETURN|CONTINUE|WHILE|TRY|CATCH}
 
 COMMENT       = _{ comment_block | comment_line }
 comment_block = @{ "###" ~ (!"###" ~ ANY)* ~ "###" }
 comment_line  = @{ "#" ~ (!NEWLINE ~ ANY)* }
 
 part         = { (!( "|" | "{" | "}" | "\r" | "\n" | "#") ~ ANY)+ }
-statements   =_{ NEWLINE | stmt_define | stmt_assign | stmt_invoke }
+statements   =_{ stmt_if | stmt_define | stmt_assign | stmt_invoke | NEWLINE }
 stmt_assign  = { param_define ~ "=" ~ (stmt_invoke | param_invoke) }
-stmt_invoke  = { part ~ (param_invoke | part)* }
-stmt_define  = { part ~ (param_define | part)* ~ "{" ~ statements* ~ "}" }
+stmt_if =  { IF ~ param_invoke ~ "{" ~ statements* ~ "}" ~ stmt_else? }
+stmt_else = {ELSE ~ (("{" ~ statements* ~ "}")| stmt_if)}
+
+stmt_define  = { !(reserved_parts) ~ part ~ (param_define | part)* ~ "{" ~ statements* ~ "}" }
+stmt_invoke  = { !(reserved_parts) ~ part ~ (param_invoke | part)* }
 param_invoke = { "|" ~ expression ~ "|" }
 param_define = { "|" ~ ident ~ "|" }
 
