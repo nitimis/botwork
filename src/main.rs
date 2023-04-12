@@ -81,6 +81,15 @@ fn oduraja(pair: Pair<Rule>) {
         Rule::stmt_if => todo!(),
         Rule::stmt_else => todo!(),
         Rule::reserved_parts => todo!(),
+        Rule::IN => todo!(),
+        Rule::stmt_for => todo!(),
+        Rule::stmt_while => todo!(),
+        Rule::stmt_try => todo!(),
+        Rule::stmt_catch => todo!(),
+        Rule::stmt_break => todo!(),
+        Rule::stmt_continue => todo!(),
+        Rule::stmt_return => todo!(),
+        Rule::primary => todo!(),
     };
     /*
     let _pratt = PrattParser::new()

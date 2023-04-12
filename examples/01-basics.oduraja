@@ -1,5 +1,3 @@
-If |a>b| {
-	Log |a|
-} else if |b>a|{
-	Log |b|
+for |i| in |a+b| {
+	log |6|
 }
