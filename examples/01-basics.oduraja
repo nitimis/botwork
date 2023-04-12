@@ -4,6 +4,6 @@ Block Comment
 Print |a| asdb {
     # Inline Comment
 	Log |a| {
-		blee | "foo" |
+		blee | true |
 	}
 }
