@@ -32,10 +32,10 @@ stmt_catch    =  { CATCH ~ "{" ~ statements* ~ "}" }
 stmt_define   =  { !reserved_parts ~ part ~ (param_define | part)* ~ "{" ~ statements* ~ "}" }
 stmt_invoke   =  { !reserved_parts ~ part ~ (param_invoke | part)* }
 stmt_break    =  { BREAK }
-stmt_continue =  { BREAK }
+stmt_continue =  { CONTINUE }
 stmt_return   =  { RETURN ~ (param_invoke)? }
-param_invoke  =  { "|" ~ expression ~ "|" }
-param_define  =  { "|" ~ ident ~ "|" }
+param_invoke  = _{ "|" ~ expression ~ "|" }
+param_define  = _{ "|" ~ ident ~ "|" }
 
 expression        = _{ infix | expression_inner }
 infix             =  { expression_inner ~ (binary_operator ~ expression_inner)+ }
@@ -48,7 +48,7 @@ literal           = _{ map | array | string | float | integer | boolean }
 array             =  { "[" ~ (expression ~ ("," ~ expression)*)? ~ "]" }
 ident             = @{ !reserved ~ LETTER ~ (LETTER | NUMBER | "_")* }
 
-map      = { "{" ~ (map_pair ~ ("," ~ map_pair)*)? ~ "}" }
+map      =  { "{" ~ (map_pair ~ ("," ~ map_pair)*)? ~ "}" }
 map_pair =  { keyword ~ expression }
 keyword  = @{ ident ~ ":" }
 
