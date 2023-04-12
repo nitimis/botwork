@@ -34,8 +34,8 @@ stmt_invoke   =  { !reserved_parts ~ part ~ (param_invoke | part)* }
 stmt_break    =  { BREAK }
 stmt_continue =  { CONTINUE }
 stmt_return   =  { RETURN ~ (param_invoke)? }
-param_invoke  = _{ "|" ~ expression ~ "|" }
-param_define  = _{ "|" ~ ident ~ "|" }
+param_invoke  =  { "|" ~ expression ~ "|" }
+param_define  =  { "|" ~ ident ~ "|" }
 
 expression        = _{ infix | expression_inner }
 infix             =  { expression_inner ~ (binary_operator ~ expression_inner)+ }
