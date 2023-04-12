@@ -1,9 +1,11 @@
+# INLINE COMMENT
+
 ###
 Block Comment
 ###
+
 Print |a| asdb {
     # Inline Comment
-	Log |a| {
-		blee | true |
-	}
+	|a| = |a + 1|
+	Log |a|
 }

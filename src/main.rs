@@ -18,11 +18,14 @@ fn oduraja(pair: Pair<Rule>) {
     match pair.as_rule() {
         Rule::EOI => todo!(),
         Rule::WHITESPACE => todo!(),
+        Rule::NEWLINE => todo!(),
         Rule::oduraja => todo!(),
         Rule::reserved => todo!(),
         Rule::part => todo!(),
+        Rule::statements => todo!(),
         Rule::stmt_invoke => todo!(),
         Rule::stmt_define => todo!(),
+        Rule::stmt_assign => todo!(),
         Rule::param_invoke => todo!(),
         Rule::param_define => todo!(),
         Rule::COMMENT => todo!(),
@@ -36,7 +39,6 @@ fn oduraja(pair: Pair<Rule>) {
         Rule::dot_path => todo!(),
         Rule::literal => todo!(),
         Rule::array => todo!(),
-        Rule::atom => todo!(),
         Rule::ident => todo!(),
         Rule::map => todo!(),
         Rule::map_pair => todo!(),
@@ -80,6 +82,7 @@ fn main() {
 
     match parser::Parser::parse(Rule::oduraja, &source) {
         Ok(tree) => {
+            dbg!(&tree);
             for pair in tree {
                 oduraja(pair);
             }

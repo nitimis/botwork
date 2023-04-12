@@ -1,16 +1,19 @@
-WHITESPACE = _{ (" " | "\t" | "\n" | "\r")+ }
-oduraja    = _{ SOI ~ (stmt_define | stmt_invoke)* ~ EOI }
-reserved   =  { "true" | "false" }
-
-part         = { (!("|" | "{" | "}" | "\r" | "\n" | "#") ~ ANY)+ }
-stmt_invoke  = { part ~ (param_invoke | part)* }
-stmt_define  = { part ~ (param_define | part)* ~ "{" ~ (stmt_define | stmt_invoke)* ~ "}" }
-param_invoke = { "|" ~ expression ~ "|" }
-param_define = { "|" ~ ident ~ "|" }
+WHITESPACE = _{ (" " | "\t" )+ }
+NEWLINE    = _{"\n" | "\r\n" | "\r"}
+oduraja    = _{ SOI ~ statements* ~ EOI }
+reserved   =  { "true" | "false" | "and" | "or" }
 
 COMMENT       = _{ comment_block | comment_line }
 comment_block = @{ "###" ~ (!"###" ~ ANY)* ~ "###" }
-comment_line  = @{ "#" ~ (!("\r" | "\n") ~ ANY)* }
+comment_line  = @{ "#" ~ (!NEWLINE ~ ANY)* }
+
+part         = { (!( "|" | "{" | "}" | "\r" | "\n" | "#") ~ ANY)+ }
+statements   =_{ NEWLINE | stmt_define | stmt_assign | stmt_invoke }
+stmt_assign  = { param_define ~ "=" ~ (stmt_invoke | param_invoke) }
+stmt_invoke  = { part ~ (param_invoke | part)* }
+stmt_define  = { part ~ (param_define | part)* ~ "{" ~ statements* ~ "}" }
+param_invoke = { "|" ~ expression ~ "|" }
+param_define = { "|" ~ ident ~ "|" }
 
 expression        = _{ infix | expression_inner }
 infix             =  { expression_inner ~ (binary_operator ~ expression_inner)+ }
@@ -18,10 +21,9 @@ expression_inner  = _{ dot_path | unary | literal | ident | braced_expression }
 braced_expression = _{ "(" ~ expression ~ ")" }
 unary             =  { unary_operator ~ (literal | dot_path | ident | braced_expression) }
 dot_path          =  { ident ~ ("." ~ (ident | integer))+ }
-literal           = _{ map | array | string | atom | float | integer | boolean }
+literal           = _{ map | array | string | float | integer | boolean }
 array             =  { "[" ~ (expression ~ ("," ~ expression)*)? ~ "]" }
-atom              = @{ ":" ~ ident }
-ident             = @{ !reserved ~ LETTER ~ (LETTER | "_")* }
+ident             = @{ !reserved ~ LETTER ~ (LETTER | NUMBER | "_")* }
 
 map      =  { "{" ~ (map_pair ~ ("," ~ map_pair)*)? ~ "}" }
 map_pair =  { keyword ~ expression }
@@ -35,7 +37,7 @@ string_content   = ${ (string_escape | !(string_delimiter | "\\") ~ ANY)* }
 string_delimiter = _{ "\"" }
 string_escape    = _{ "\\" ~ ("\"" | "\\" | "n") }
 
-exponent              = { "**" }
+exponent              = { "^" }
 multiply              = { "*" }
 divide                = { "/" }
 modulus               = { "%" }
@@ -47,8 +49,8 @@ greater_than          = { ">" }
 greater_than_or_equal = { ">=" }
 not_equal             = { "!=" }
 equal                 = { "==" }
-logical_and           = { "&&" }
-logical_or            = { "||" }
+logical_and           = { "and" }
+logical_or            = { "or" }
 logical_not           = { "!" }
 
 binary_operator = _{
