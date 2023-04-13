@@ -92,7 +92,7 @@ binary_operator = _{
   | logical_and
   | logical_or
 }
-unary_operator  = _{ plus | minus | logical_not }
+unary_operator  = _{ minus | logical_not }
 
 boolean       = { boolean_true | boolean_false }
 boolean_true  = { "true" }
