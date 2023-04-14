@@ -303,7 +303,7 @@ fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> ORResult {
 }
 
 fn main() {
-    let source = read_to_string("examples/01-basics.oduraja").unwrap();
+    let source = read_to_string("examples/01-expressions.oduraja").unwrap();
     match parser::Parser::parse(Rule::oduraja, &source) {
         Ok(tree) => {
             let mut context = Context::default();
