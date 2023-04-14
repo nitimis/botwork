@@ -6,26 +6,32 @@ mod parser {
     pub struct Parser;
 }
 
-use lazy_static::lazy_static;
 use parser::Rule;
-use pest::{
-    iterators::{Pair, Pairs},
-    pratt_parser::{Assoc, Op, PrattParser},
-    Parser,
-};
-use std::{collections::HashMap, fs::read_to_string};
+use pest::{iterators::Pair, pratt_parser::PrattParser, Parser};
+use std::{cell::RefCell, collections::HashMap, fs::read_to_string, rc::Rc};
 
 use thiserror::Error;
 
-lazy_static! {
-    static ref PRATT: PrattParser<Rule> = PrattParser::new()
-        .op(Op::infix(Rule::plus, Assoc::Left) | Op::infix(Rule::minus, Assoc::Left))
-        .op(Op::infix(Rule::multiply, Assoc::Left) | Op::infix(Rule::divide, Assoc::Left))
-        .op(Op::prefix(Rule::unary));
+lazy_static::lazy_static! {
+    static ref PRATT_PARSER: PrattParser<Rule> = {
+        use pest::pratt_parser::{Assoc::*, Op};
+        use Rule::*;
+        PrattParser::new()
+            .op(Op::infix(plus, Left) | Op::infix(minus, Left))
+            .op(Op::infix(multiply, Left) | Op::infix(divide, Left) | Op::infix(modulus, Left))
+            .op(Op::prefix(unary))
+    };
 }
 
+/// Odu Raja Ok
+#[derive(Debug)]
+struct OROk {
+    token: Token,
+}
+
+/// Ode Raja Err
 #[derive(Error, Debug)]
-pub enum OduRajaError {
+pub enum ORErr {
     #[error("Variable not defined")]
     VariableNotDefined(String),
     #[error("Statement not defined")]
@@ -34,38 +40,42 @@ pub enum OduRajaError {
     ParameterMissingError(String),
     #[error("Parsing integer error")]
     ParsingIntegerError(String),
+    #[error("Nested error")]
+    NestedError(String),
+    #[error("Operation performed on incompatible types")]
+    OperationIncompatibleError(String),
 }
 
 #[derive(Clone, Debug)]
-enum Literal {
+enum Token {
     None,
     Int(i32),
+    /*
     Float(f32),
     Bool(bool),
     String(String),
     List(Vec<Literal>),
     Dict(HashMap<String, Literal>),
+    */
+    Op(Rule),
 }
 
 #[derive(Clone, Default)]
 struct Context {
-    variables: HashMap<String, Literal>,
+    // variables: HashMap<String, Literal>,
     statements: HashMap<String, Callback>,
 }
 
-struct OduRajaOK {
-    literal: Literal,
-}
-
 impl Context {
-    fn get_variable(&self, name: &String) -> Option<&Literal> {
-        self.variables.get(name)
-    }
+    /*
+        fn get_variable(&self, name: &String) -> Option<&Literal> {
+            self.variables.get(name)
+        }
 
-    fn contains_variable(&self, name: &String) -> bool {
-        self.variables.contains_key(name)
-    }
-
+        fn contains_variable(&self, name: &String) -> bool {
+            self.variables.contains_key(name)
+        }
+    */
     fn contains_statement(&self, name: &String) -> bool {
         self.statements.contains_key(name)
     }
@@ -79,27 +89,8 @@ impl Context {
     }
 }
 
-type Callback = fn(Pair<Rule>, &mut Context) -> Result<OduRajaOK, OduRajaError>;
-
-fn parse_expr(pairs: Pairs<Rule>, globals: &mut Context) -> Result<OduRajaOK, OduRajaError> {
-    PRATT
-        .map_primary(|primary| oduraja(primary, globals))
-        /*
-        .map_prefix(|op, rhs| match op.as_rule() {
-            Rule::neg => -rhs,
-            _ => unreachable!(),
-        })
-        .map_infix(|lhs, op, rhs| match op.as_rule() {
-            Rule::add => lhs + rhs,
-            Rule::sub => lhs - rhs,
-            Rule::mul => lhs * rhs,
-            Rule::div => lhs / rhs,
-            Rule::pow => (1..rhs + 1).map(|_| lhs).product(),
-            _ => unreachable!(),
-        })
-            */
-        .parse(pairs)
-}
+type ORResult = Result<OROk, ORErr>;
+type Callback = fn(Pair<Rule>, &mut Context) -> ORResult;
 
 fn hashify(text: &str) -> String {
     text.replace(' ', "").to_lowercase()
@@ -117,59 +108,133 @@ fn get_stmt_hash(pair: &Pair<Rule>) -> String {
     hash
 }
 
-fn log_param(pair: Pair<Rule>, globals: &mut Context) -> Result<OduRajaOK, OduRajaError> {
+fn log_param(pair: Pair<Rule>, globals: &mut Context) -> ORResult {
     let param_pair = pair
         .into_inner()
         .filter(|pair| pair.as_rule() == Rule::param_invoke)
         .last()
-        .ok_or(OduRajaError::ParameterMissingError(
+        .ok_or(ORErr::ParameterMissingError(
             "`Log {param}` requires atleast 1 parameter".into(),
         ))?;
     let ok = oduraja(param_pair, globals)?;
-    dbg!(&ok.literal);
-    Ok(ok)
+    Ok(dbg!(ok))
 }
 
-fn no_op(_pair: Pair<Rule>, _globals: &mut Context) -> Result<OduRajaOK, OduRajaError> {
-    Ok(OduRajaOK {
-        literal: Literal::None,
-    })
+fn no_op(_pair: Pair<Rule>, _globals: &mut Context) -> ORResult {
+    Ok(OROk { token: Token::None })
 }
 
-fn stmt_invoke(pair: Pair<Rule>, globals: &mut Context) -> Result<OduRajaOK, OduRajaError> {
+fn stmt_invoke(pair: Pair<Rule>, globals: &mut Context) -> ORResult {
     let hash = get_stmt_hash(&pair);
     if !globals.contains_statement(&hash) {
-        return Err(OduRajaError::StatementNotDefined(pair.as_str().into()));
+        return Err(ORErr::StatementNotDefined(pair.as_str().into()));
     }
     let statement = globals.get_statement(&hash).unwrap();
     statement(pair, globals)
 }
 
-fn param_invoke(pair: Pair<Rule>, globals: &mut Context) -> Result<OduRajaOK, OduRajaError> {
-    parse_expr(pair.into_inner(), globals)
+trait Operate {
+    fn operate_unary(&self, rhs: ORResult) -> ORResult;
+    fn operate_binary(&self, lhs: ORResult, rhs: ORResult) -> ORResult;
 }
 
-fn integer(pair: Pair<Rule>, _globals: &mut Context) -> Result<OduRajaOK, OduRajaError> {
-    match pair.as_str().parse() {
-        Ok(integer) => Ok(OduRajaOK {
-            literal: Literal::Int(integer),
-        }),
-        Err(err) => Err(OduRajaError::ParsingIntegerError(err.to_string())),
+impl Operate for ORResult {
+    fn operate_binary(&self, lhs: ORResult, rhs: ORResult) -> ORResult {
+        match (lhs, self, rhs) {
+            (
+                Ok(OROk { token: lhs }),
+                Ok(OROk {
+                    token: Token::Op(op),
+                }),
+                Ok(OROk { token: rhs }),
+            ) => match op {
+                Rule::multiply => todo!(),
+                Rule::divide => todo!(),
+                Rule::modulus => todo!(),
+                Rule::plus => match (lhs, rhs) {
+                    (Token::Int(a), Token::Int(b)) => Ok(OROk {
+                        token: Token::Int(a + b),
+                    }),
+                    rest => Err(ORErr::OperationIncompatibleError(format!("{:?}", rest))),
+                },
+                Rule::minus => todo!(),
+                Rule::less_than => todo!(),
+                Rule::less_than_or_equal => todo!(),
+                Rule::greater_than => todo!(),
+                Rule::greater_than_or_equal => todo!(),
+                Rule::not_equal => todo!(),
+                Rule::equal => todo!(),
+                Rule::logical_and => todo!(),
+                Rule::logical_or => todo!(),
+                _ => unreachable!("Unknown Operator {:?}", op),
+            },
+            //TODO: Stack Trace is lost. I am stupid. Need help preserving it :P
+            _ => Err(ORErr::NestedError("Error with Expression".into())),
+        }
+        // Ok(OROk { token: Token::None })
+    }
+
+    fn operate_unary(&self, rhs: ORResult) -> ORResult {
+        match (self, rhs) {
+            (
+                Ok(OROk {
+                    token: Token::Op(op),
+                }),
+                Ok(OROk { token: _rhs }),
+            ) => match op {
+                Rule::minus => todo!(),
+                Rule::logical_not => todo!(),
+                _ => unreachable!("Unknown Operator {:?}", op),
+            },
+            //TODO: Stack Trace is lost. I am stupid. Need help preserving it :P
+            _ => Err(ORErr::NestedError("Error with Expression".into())),
+        }
     }
 }
 
-fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> Result<OduRajaOK, OduRajaError> {
-    match pair.as_rule() {
-        Rule::EOI => todo!(),
+fn param_invoke(pair: Pair<Rule>, globals: &mut Context) -> ORResult {
+    let globals = Rc::new(RefCell::new(globals));
+    let result = PRATT_PARSER
+        .map_primary(|primary| oduraja(primary, &mut globals.borrow_mut()))
+        .map_infix(|lhs, op, rhs| {
+            let op = oduraja(op, &mut globals.borrow_mut());
+            op.operate_binary(lhs, rhs)
+        })
+        .map_prefix(|op, rhs| {
+            let op = oduraja(op, &mut globals.borrow_mut());
+            op.operate_unary(rhs)
+        })
+        .parse(pair.into_inner());
+    result
+}
+
+fn integer(pair: Pair<Rule>, _globals: &mut Context) -> ORResult {
+    match pair.as_str().parse() {
+        Ok(integer) => Ok(OROk {
+            token: Token::Int(integer),
+        }),
+        Err(err) => Err(ORErr::ParsingIntegerError(err.to_string())),
+    }
+}
+
+fn token_op(pair: Pair<Rule>, _globals: &mut Context) -> ORResult {
+    Ok(OROk {
+        token: Token::Op(pair.as_rule()),
+    })
+}
+
+fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> ORResult {
+    let op = match pair.as_rule() {
+        Rule::EOI => no_op,
         Rule::WHITESPACE => todo!(),
         Rule::oduraja => todo!(),
         Rule::reserved => todo!(),
-        Rule::part => no_op(pair, globals),
+        Rule::part => todo!(),
         Rule::statements => todo!(),
-        Rule::stmt_invoke => stmt_invoke(pair, globals),
+        Rule::stmt_invoke => stmt_invoke,
         Rule::stmt_define => todo!(),
         Rule::stmt_assign => todo!(),
-        Rule::param_invoke => param_invoke(pair, globals),
+        Rule::param_invoke => param_invoke,
         Rule::param_define => todo!(),
         Rule::COMMENT => todo!(),
         Rule::comment_block => todo!(),
@@ -177,7 +242,6 @@ fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> Result<OduRajaOK, OduRaja
         Rule::expression => todo!(),
         Rule::infix => todo!(),
         Rule::expression_inner => todo!(),
-        Rule::braced_expression => todo!(),
         Rule::unary => todo!(),
         Rule::dot_path => todo!(),
         Rule::literal => todo!(),
@@ -186,29 +250,30 @@ fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> Result<OduRajaOK, OduRaja
         Rule::map => todo!(),
         Rule::map_pair => todo!(),
         Rule::keyword => todo!(),
-        Rule::integer => integer(pair, globals),
+        Rule::integer => integer,
         Rule::float => todo!(),
         Rule::string => todo!(),
         Rule::string_content => todo!(),
         Rule::string_delimiter => todo!(),
         Rule::string_escape => todo!(),
-        Rule::exponent => todo!(),
-        Rule::multiply => todo!(),
-        Rule::divide => todo!(),
-        Rule::modulus => todo!(),
-        Rule::plus => todo!(),
-        Rule::minus => todo!(),
-        Rule::less_than => todo!(),
-        Rule::less_than_or_equal => todo!(),
-        Rule::greater_than => todo!(),
-        Rule::greater_than_or_equal => todo!(),
-        Rule::not_equal => todo!(),
-        Rule::equal => todo!(),
-        Rule::logical_and => todo!(),
-        Rule::logical_or => todo!(),
-        Rule::logical_not => todo!(),
-        Rule::binary_operator => todo!(),
-        Rule::unary_operator => todo!(),
+        Rule::braced_expression => todo!(),
+        Rule::exponent => token_op,
+        Rule::multiply => token_op,
+        Rule::divide => token_op,
+        Rule::modulus => token_op,
+        Rule::plus => token_op,
+        Rule::minus => token_op,
+        Rule::less_than => token_op,
+        Rule::less_than_or_equal => token_op,
+        Rule::greater_than => token_op,
+        Rule::greater_than_or_equal => token_op,
+        Rule::not_equal => token_op,
+        Rule::equal => token_op,
+        Rule::logical_and => token_op,
+        Rule::logical_or => token_op,
+        Rule::logical_not => token_op,
+        Rule::binary_operator => token_op,
+        Rule::unary_operator => token_op,
         Rule::boolean => todo!(),
         Rule::boolean_true => todo!(),
         Rule::boolean_false => todo!(),
@@ -233,7 +298,8 @@ fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> Result<OduRajaOK, OduRaja
         Rule::stmt_continue => todo!(),
         Rule::stmt_return => todo!(),
         Rule::primary => todo!(),
-    }
+    };
+    op(pair, globals)
 }
 
 fn main() {
@@ -242,15 +308,17 @@ fn main() {
         Ok(tree) => {
             let mut context = Context::default();
             context.init_statement();
+            let mut results = Vec::new();
             for pair in tree {
                 match oduraja(pair, &mut context) {
-                    Ok(_) => {}
+                    Ok(ok) => results.push(ok.token),
                     Err(err) => {
                         dbg!(err);
                         panic!()
                     }
                 };
             }
+            dbg!(results);
         }
         Err(err) => {
             println!("Failed parsing input: {:}", err);
