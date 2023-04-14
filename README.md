@@ -7,7 +7,7 @@ Odu Raja is a single-binary, generic and open-source automation framework for ac
 I have been using Robot Framework for a couple of years now. While it is a super-awesome framework, there are a couple of things that I am not very fond of:
 
 1. It basically requires Python (and virtualenv) to run. This means, it needs more space (when building container images, for instance) and consumes a lot of memory (Python is the love of my life, but it is slow and resource-heavy).
-2. The syntax could have been even more simpler. For instance, `${}`, `@{}`, etc. variable usage confuses people who are new to the framework.
+2. The syntax could have been even more simpler. For instance, two(+)-space token seperator, `${}`, `@{}`, etc. variable usage confuses people who are new to the framework.
 3.  It is mostly extendible only with Python.
 
 I wanted:
