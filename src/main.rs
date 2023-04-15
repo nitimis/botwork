@@ -174,6 +174,9 @@ impl Operate for Rule {
                 (Int(a), Float(b)) => Ok(Float(a as f32 + b)),
                 (Float(a), Float(b)) => Ok(Float(a + b)),
                 (String(a), String(b)) => Ok(String(format!("{}{}", a, b))),
+                (Array(a), Array(b)) => {
+                    Ok(Array(a.iter().cloned().chain(b.iter().cloned()).collect()))
+                }
                 _ => err,
             },
             minus => match (lhs, rhs) {
