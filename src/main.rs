@@ -54,8 +54,9 @@ pub enum ORErr {
     OperandsNotFound(String),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 enum Literal {
+    #[default]
     None,
     Int(i32),
     Float(f32),
@@ -65,10 +66,28 @@ enum Literal {
     Map(HashMap<String, Literal>),
 }
 
+#[derive(Clone, Debug, Default, PartialEq)]
+enum InteruptKind {
+    #[default]
+    None,
+    Continue,
+    Break,
+    Return,
+}
+
+/// Metadata used to indicate program interuption.
+/// Like BREAK, CONTINUE, RETURN
+#[derive(Clone, Debug, Default)]
+struct Interupt {
+    kind: InteruptKind,
+    literal: Literal,
+}
+
 #[derive(Clone, Default)]
 struct Context {
     variables: HashMap<String, Literal>,
     statements: HashMap<String, Callback>,
+    interupt: Interupt,
 }
 
 impl Context {
@@ -102,6 +121,49 @@ impl Context {
 
     fn init_statement(&mut self) {
         self.statements.insert("log|param|".into(), log_param);
+    }
+
+    fn push_interupt(&mut self, interupt: Interupt) {
+        if InteruptKind::None == self.interupt.kind {
+            self.interupt = interupt
+        } else {
+            unreachable!("Tried pusing interupt, while an other one os already in progress!")
+        }
+    }
+
+    fn push_interupt_break(&mut self) {
+        self.push_interupt(Interupt {
+            kind: InteruptKind::Break,
+            literal: Literal::None,
+        })
+    }
+
+    fn push_interupt_continue(&mut self) {
+        self.push_interupt(Interupt {
+            kind: InteruptKind::Continue,
+            literal: Literal::None,
+        })
+    }
+
+    fn push_interupt_return(&mut self, literal: Literal) {
+        self.push_interupt(Interupt {
+            kind: InteruptKind::Return,
+            literal,
+        })
+    }
+
+    fn has_loop_interupt(&self) -> bool {
+        match self.interupt.kind {
+            InteruptKind::Continue | InteruptKind::Break => true,
+            InteruptKind::None | InteruptKind::Return => false,
+        }
+    }
+
+    fn pop_interupt(&mut self) -> Interupt {
+        let interupt = self.interupt.clone();
+        self.interupt.literal = Literal::None; // Just in case
+        self.interupt.kind = InteruptKind::None;
+        interupt
     }
 }
 
@@ -338,6 +400,9 @@ fn map(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
         let value = kv
             .next()
             .ok_or(ORErr::ParsingError("Getting keyword from map_pair".into()))?;
+        if kv.next().is_some() {
+            unreachable!("Map statment still has unused pairs!");
+        }
         if let Literal::String(keyword) = oduraja(keyword, globals)? {
             let value = oduraja(value, globals)?;
             map.insert(keyword, value);
@@ -360,6 +425,9 @@ fn stmt_assign(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let value = inner
         .next()
         .ok_or(ORErr::ParsingError("Getting value failed".into()))?;
+    if inner.next().is_some() {
+        unreachable!("Assignment statment still has unused pairs!");
+    }
     let value = oduraja(value, globals)?;
     globals.set_variable(ident, value.clone());
     Ok(value)
@@ -384,7 +452,13 @@ fn stmt_if(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
             oduraja(block, globals)
         } else {
             match inner.next() {
-                Some(block) => oduraja(block, globals),
+                Some(block) => {
+                    let result = oduraja(block, globals);
+                    if inner.next().is_some() {
+                        unreachable!("If statment still has unused pairs!");
+                    }
+                    result
+                }
                 None => no_op(pair, globals),
             }
         }
@@ -394,12 +468,65 @@ fn stmt_if(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
         ))
     }
 }
+
 fn stmt_block(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
-    let block = pair
-        .into_inner()
+    let mut results = vec![];
+    for block in pair.into_inner() {
+        if Rule::stmt_break == block.as_rule() {
+            globals.push_interupt_break();
+            return Ok(Literal::Array(results));
+        } else if Rule::stmt_continue == block.as_rule() {
+            globals.push_interupt_continue();
+            return Ok(Literal::Array(results));
+        } else if globals.has_loop_interupt() {
+            return Ok(Literal::Array(results));
+        } else {
+            let result = oduraja(block, globals)?;
+            results.push(result);
+        }
+    }
+    Ok(Literal::Array(results))
+}
+
+fn stmt_for(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
+    let mut inner = pair.into_inner();
+    let ident = inner
         .next()
-        .ok_or(ORErr::ParsingError("Getting else block failed".into()))?;
-    oduraja(block, globals)
+        .ok_or(ORErr::ParsingError("Getting ident failed".into()))?;
+    let array = inner
+        .next()
+        .ok_or(ORErr::ParsingError("Getting array failed".into()))?;
+    let block = inner
+        .next()
+        .ok_or(ORErr::ParsingError("Getting block failed".into()))?;
+    if inner.next().is_some() {
+        unreachable!("For statment still has unused pairs!");
+    }
+    if let Literal::Array(array) = oduraja(array.clone(), globals)? {
+        let mut results = vec![];
+        for i in array {
+            globals.set_variable(ident.as_str().to_string(), i);
+            let result = oduraja(block.clone(), globals)?;
+            let interupt = globals.pop_interupt();
+            results.push(result);
+            match interupt.kind {
+                InteruptKind::None => (),
+                InteruptKind::Continue => continue,
+                InteruptKind::Break => return Ok(Literal::Array(results)),
+                InteruptKind::Return => {
+                    // push it back because it needs to be habdled by stmt_block
+                    globals.push_interupt(interupt);
+                    break;
+                }
+            }
+        }
+        Ok(Literal::Array(results))
+    } else {
+        Err(ORErr::OperationIncompatibleError(format!(
+            "FOR loop requires array to iterate over. But found: {}",
+            array
+        )))
+    }
 }
 
 fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
@@ -469,7 +596,7 @@ fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
         Rule::stmt_else => stmt_block,
         Rule::reserved_parts => todo!(),
         Rule::IN => todo!(),
-        Rule::stmt_for => todo!(),
+        Rule::stmt_for => stmt_for,
         Rule::stmt_while => todo!(),
         Rule::stmt_try => todo!(),
         Rule::stmt_catch => todo!(),

@@ -12,9 +12,10 @@ Log |"Hello, World!"|
 ###
 As you will see, a statement is a plain english sentence with zero or more parameters.
 parametes are expressions/literals enclosed within pipe symbol `|`.
-Each line is a single statment. And all statements are case-insensitive (but the variables used inside parameters are still case-sensitive). 
-Statements (except assignment) cannot begin with parameters.
 Statements cannot begin with reserved keywords like (if, for, while, else, return, continue, etc).
+Each line is a single statment. And all statements & keywords are case-insensitive.
+The variables used inside parameters are still case-sensitive). 
+Statements (except assignment) cannot begin with parameters.
 But it can still contain the reserved keywords in the middle of the statement
 They also cannot contain curly-braces "{", "}", pound sign "#", or new lines.
 Every statement will always return a Literal (None, Bool, Int, Float, String, Array, Map)
@@ -26,7 +27,7 @@ Every statement will always return a Literal (None, Bool, Int, Float, String, Ar
 log |"Hello, World!"|
 LOG |"Hello, World!"|
 Log|"Hello, World!"|
-Log   |"Hello, World!"|
+Log   |   "Hello, World!"  |
    Log   |"Hello, World!"|
 
 # Data Types (Bool, Int, Float, String, Array, Map)
@@ -57,12 +58,31 @@ If | a>b | {
 
 If | a>b | {
 	Log |"a is greater"|
-} else {
+} Else {
 	Log |"b is greater"|
 }
 
 If | b>a | {
 	Log |"b is greater again"|
-}  else {
+}  Else {
 	Log |"a is greater"|
+}
+
+###
+FOR statement
+###
+
+For |i| in |[1, 2, 3, 4, 5]| {
+	if |i > 3| {
+		Log |"i is greater than 3, breaking..."|
+		Break
+	}
+	Log |i|
+}
+For |i| in |[1, 2, 3, 4, 5]| {
+	if |i < 3| {
+		Log |"i is lesser than 3, skipping log..."|
+		Continue
+	}
+	Log |i|
 }
