@@ -60,20 +60,29 @@ enum Literal {
 
 #[derive(Clone, Default)]
 struct Context {
-    // variables: HashMap<String, Literal>,
+    variables: HashMap<String, Literal>,
     statements: HashMap<String, Callback>,
 }
 
 impl Context {
-    /*
-        fn get_variable(&self, name: &String) -> Option<&Literal> {
-            self.variables.get(name)
+    fn get_variable(&self, name: &String) -> LiteralResult {
+        match self.variables.get(name) {
+            Some(value) => Ok(value.to_owned()),
+            None => Err(ORErr::VariableNotDefined(format!(
+                "Varaible not defined: {}",
+                name
+            ))),
         }
+    }
 
-        fn contains_variable(&self, name: &String) -> bool {
-            self.variables.contains_key(name)
-        }
-    */
+    fn contains_variable(&self, name: &String) -> bool {
+        self.variables.contains_key(name)
+    }
+
+    fn set_variable(&mut self, name: String, literal: Literal) -> Option<Literal> {
+        self.variables.insert(name, literal)
+    }
+
     fn contains_statement(&self, name: &String) -> bool {
         self.statements.contains_key(name)
     }
@@ -332,6 +341,26 @@ fn map(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     Ok(Literal::Map(map))
 }
 
+fn stmt_assign(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
+    let mut inner = pair.into_inner();
+    let ident = inner
+        .next()
+        .ok_or(ORErr::ParsingError("Getting ident failed".into()))?
+        .as_str()
+        .to_string();
+    let value = inner
+        .next()
+        .ok_or(ORErr::ParsingError("Getting value failed".into()))?;
+    let value = oduraja(value, globals)?;
+    globals.set_variable(ident, value.clone());
+    Ok(value)
+}
+
+fn ident(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
+    let ident = pair.as_str().to_string();
+    globals.get_variable(&ident)
+}
+
 fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let op = match pair.as_rule() {
         Rule::EOI => no_op,
@@ -342,7 +371,7 @@ fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
         Rule::statements => todo!(),
         Rule::stmt_invoke => stmt_invoke,
         Rule::stmt_define => todo!(),
-        Rule::stmt_assign => todo!(),
+        Rule::stmt_assign => stmt_assign,
         Rule::param_invoke => pratt_parse,
         Rule::param_define => todo!(),
         Rule::COMMENT => todo!(),
@@ -355,7 +384,7 @@ fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
         Rule::dot_path => todo!(),
         Rule::literal => todo!(),
         Rule::array => array,
-        Rule::ident => todo!(),
+        Rule::ident => ident,
         Rule::map => map,
         Rule::map_pair => todo!(),
         Rule::keyword => string,

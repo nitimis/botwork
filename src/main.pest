@@ -35,7 +35,7 @@ stmt_break    =  { BREAK }
 stmt_continue =  { CONTINUE }
 stmt_return   =  { RETURN ~ (param_invoke)? }
 param_invoke  =  { "|" ~ expression ~ "|" }
-param_define  =  { "|" ~ ident ~ "|" }
+param_define  = _{ "|" ~ ident ~ "|" }
 
 expression        =  { infix | expression_inner }
 infix             = _{ expression_inner ~ (binary_operator ~ expression_inner)+ }

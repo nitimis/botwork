@@ -1,3 +1,9 @@
+# Variables
+
+|a| = |5|
+|b| = |5.5|
+|c| = |!(5>10)|
+
 # Literals
 
 Log |3|
@@ -7,9 +13,10 @@ Log |true|
 Log |!true|
 Log |"Hello World"|
 Log |"Hello \n World"|
-Log |[3, 2.67, -7.62, true, !true, "Hello World"]| 
+Log |[3, b, -7.62, true, !true, "Hello World"]| 
 Log |{number: 3, decimal: 2.67, negative: -7.62, boolean: true, not_boolean: !true, string: "Hello World"}|
 
 # Compound Operations
 
-Log |[6+5, 3] + [{a:5}] + [(5+5)*3, 3==6, 4!=1, !true, {a: {b: !true == false}}]|
+Log |[6+5, 3] + [{a:a}] + [(5+5)*3, 3==6, 4!=1, !true, {a: {b: !true == c}}]|
+Log |a*b|
