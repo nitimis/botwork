@@ -127,7 +127,9 @@ fn stmt_invoke(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     if !globals.contains_statement(&hash) {
         return Err(ORErr::StatementNotDefined(pair.as_str().into()));
     }
-    let statement = globals.get_statement(&hash).unwrap();
+    let statement = globals
+        .get_statement(&hash)
+        .ok_or(ORErr::VariableNotDefined(pair.as_str().into()))?;
     statement(pair, globals)
 }
 
