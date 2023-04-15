@@ -53,7 +53,7 @@ enum Literal {
     String(String),
     Array(Vec<Literal>),
     Map(HashMap<String, Literal>),
-    Op(Rule),
+    //Op(Rule),
 }
 
 #[derive(Clone, Default)]
@@ -144,6 +144,9 @@ impl Operate for Rule {
             Rule::modulus => todo!(),
             Rule::plus => match (lhs, rhs) {
                 (Literal::Int(a), Literal::Int(b)) => Ok(Literal::Int(a + b)),
+                (Literal::Float(a), Literal::Int(b)) => Ok(Literal::Float(a + b as f32)),
+                (Literal::Int(a), Literal::Float(b)) => Ok(Literal::Float(a as f32 + b)),
+                (Literal::Float(a), Literal::Float(b)) => Ok(Literal::Float(a + b)),
                 rest => Err(ORErr::OperationIncompatibleError(format!("{:?}", rest))),
             },
             Rule::minus => todo!(),
@@ -175,7 +178,7 @@ impl Operate for Rule {
     }
 }
 
-fn param_invoke(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
+fn pratt_parse(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
     let globals = Rc::new(RefCell::new(globals));
     let result = PRATT_PARSER
         .map_primary(|primary| oduraja(primary, &mut globals.borrow_mut()))
@@ -207,9 +210,10 @@ fn boolean_false(_pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
     Ok(Literal::Bool(false))
 }
 
+/*
 fn token_op(pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
     Ok(Literal::Op(pair.as_rule()))
-}
+}*/
 
 fn string(pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
     Ok(Literal::String(pair.as_str().into()))
@@ -251,7 +255,7 @@ fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
         Rule::stmt_invoke => stmt_invoke,
         Rule::stmt_define => todo!(),
         Rule::stmt_assign => todo!(),
-        Rule::param_invoke => param_invoke,
+        Rule::param_invoke => pratt_parse,
         Rule::param_define => todo!(),
         Rule::COMMENT => todo!(),
         Rule::comment_block => todo!(),
@@ -259,7 +263,7 @@ fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
         Rule::expression => todo!(),
         Rule::infix => todo!(),
         Rule::expression_inner => todo!(),
-        Rule::unary => todo!(),
+        Rule::unary => pratt_parse,
         Rule::dot_path => todo!(),
         Rule::literal => todo!(),
         Rule::array => array,
@@ -274,23 +278,23 @@ fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
         Rule::string_delimiter => todo!(),
         Rule::string_escape => todo!(),
         Rule::braced_expression => todo!(),
-        Rule::exponent => token_op,
-        Rule::multiply => token_op,
-        Rule::divide => token_op,
-        Rule::modulus => token_op,
-        Rule::plus => token_op,
-        Rule::minus => token_op,
-        Rule::less_than => token_op,
-        Rule::less_than_or_equal => token_op,
-        Rule::greater_than => token_op,
-        Rule::greater_than_or_equal => token_op,
-        Rule::not_equal => token_op,
-        Rule::equal => token_op,
-        Rule::logical_and => token_op,
-        Rule::logical_or => token_op,
-        Rule::logical_not => token_op,
-        Rule::binary_operator => token_op,
-        Rule::unary_operator => token_op,
+        Rule::exponent => todo!(),
+        Rule::multiply => todo!(),
+        Rule::divide => todo!(),
+        Rule::modulus => todo!(),
+        Rule::plus => todo!(),
+        Rule::minus => no_op,
+        Rule::less_than => todo!(),
+        Rule::less_than_or_equal => todo!(),
+        Rule::greater_than => todo!(),
+        Rule::greater_than_or_equal => todo!(),
+        Rule::not_equal => todo!(),
+        Rule::equal => todo!(),
+        Rule::logical_and => todo!(),
+        Rule::logical_or => todo!(),
+        Rule::logical_not => no_op,
+        Rule::binary_operator => todo!(),
+        Rule::unary_operator => todo!(),
         Rule::boolean => todo!(),
         Rule::boolean_true => boolean_true,
         Rule::boolean_false => boolean_false,
