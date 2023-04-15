@@ -41,16 +41,17 @@ expression        = _{ infix | expression_inner }
 infix             = _{ expression_inner ~ (binary_operator ~ expression_inner)+ }
 expression_inner  = _{ unary | primary }
 braced_expression = _{ "(" ~ expression ~ ")" }
-unary             =  { unary_operator ~ primary }
+unary             = _{ unary_operator ~ primary }
 primary           = _{ literal | dot_path | ident | braced_expression }
 dot_path          =  { ident ~ ("." ~ (ident | integer))+ }
 literal           = _{ map | array | string | float | integer | boolean }
 array             =  { "[" ~ (expression ~ ("," ~ expression)*)? ~ "]" }
 ident             = @{ !reserved ~ LETTER ~ (LETTER | NUMBER | "_")* }
 
-map      =  { "{" ~ (map_pair ~ ("," ~ map_pair)*)? ~ "}" }
-map_pair =  { keyword ~ expression }
-keyword  = @{ ident ~ ":" }
+map       =  { "{" ~ (map_pair ~ ("," ~ map_pair)*)? ~ "}" }
+map_pair  =  { keyword ~ seperator ~ expression }
+keyword   = @{ ident }
+seperator = _{ ":" }
 
 integer = @{ NUMBER+ }
 float   = @{ NUMBER+ ~ "." ~ NUMBER+ }
@@ -94,6 +95,6 @@ binary_operator = _{
 }
 unary_operator  = _{ minus | logical_not }
 
-boolean       = { boolean_true | boolean_false }
-boolean_true  = { "true" }
-boolean_false = { "false" }
+boolean       = _{ boolean_true | boolean_false }
+boolean_true  =  { "true" }
+boolean_false =  { "false" }

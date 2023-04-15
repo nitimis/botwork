@@ -17,9 +17,9 @@ lazy_static::lazy_static! {
         use pest::pratt_parser::{Assoc::*, Op};
         use Rule::*;
         PrattParser::new()
-            .op(Op::infix(plus, Left) | Op::infix(minus, Left))
-            .op(Op::infix(multiply, Left) | Op::infix(divide, Left) | Op::infix(modulus, Left))
-            .op(Op::prefix(unary))
+            .op(Op::infix(plus, Left) | Op::infix(minus, Left) | Op::infix(logical_or, Left) )
+            .op(Op::infix(multiply, Left) | Op::infix(divide, Left) | Op::infix(modulus, Left) |Op::infix(logical_and, Left) )
+            .op(Op::prefix(minus) | Op::prefix(logical_not))
     };
 }
 
@@ -44,19 +44,21 @@ pub enum ORErr {
     NestedError(String),
     #[error("Operation performed on incompatible types")]
     OperationIncompatibleError(String),
+    #[error("Operator not found")]
+    OperatorNotFoundError(String),
+    #[error("Operaands not found")]
+    OperandsNotFound(String),
 }
 
 #[derive(Clone, Debug)]
 enum Token {
     None,
     Int(i32),
-    /*
     Float(f32),
     Bool(bool),
     String(String),
-    List(Vec<Literal>),
-    Dict(HashMap<String, Literal>),
-    */
+    Array(Vec<Token>),
+    Map(HashMap<String, Token>),
     Op(Rule),
 }
 
@@ -117,7 +119,9 @@ fn log_param(pair: Pair<Rule>, globals: &mut Context) -> ORResult {
             "`Log {param}` requires atleast 1 parameter".into(),
         ))?;
     let ok = oduraja(param_pair, globals)?;
-    Ok(dbg!(ok))
+    // TODO Implement Display for token
+    dbg!(&ok.token);
+    Ok(ok)
 }
 
 fn no_op(_pair: Pair<Rule>, _globals: &mut Context) -> ORResult {
@@ -180,13 +184,26 @@ impl Operate for ORResult {
                 Ok(OROk {
                     token: Token::Op(op),
                 }),
-                Ok(OROk { token: _rhs }),
+                Ok(OROk { token: rhs }),
             ) => match op {
-                Rule::minus => todo!(),
-                Rule::logical_not => todo!(),
+                Rule::minus => match rhs {
+                    Token::Int(a) => Ok(OROk {
+                        token: Token::Int(-a),
+                    }),
+                    Token::Float(a) => Ok(OROk {
+                        token: Token::Float(-a),
+                    }),
+                    rest => Err(ORErr::OperationIncompatibleError(format!("{:?}", rest))),
+                },
+                Rule::logical_not => match rhs {
+                    Token::Bool(a) => Ok(OROk {
+                        token: Token::Bool(!a),
+                    }),
+                    rest => Err(ORErr::OperationIncompatibleError(format!("{:?}", rest))),
+                },
                 _ => unreachable!("Unknown Operator {:?}", op),
             },
-            //TODO: Stack Trace is lost. I am stupid. Need help preserving it :P
+            // TODO: Stacktrace is lost. I am stupid. Need help preserving it :P
             _ => Err(ORErr::NestedError("Error with Expression".into())),
         }
     }
@@ -217,9 +234,66 @@ fn integer(pair: Pair<Rule>, _globals: &mut Context) -> ORResult {
     }
 }
 
+fn float(pair: Pair<Rule>, _globals: &mut Context) -> ORResult {
+    match pair.as_str().parse() {
+        Ok(float) => Ok(OROk {
+            token: Token::Float(float),
+        }),
+        Err(err) => Err(ORErr::ParsingIntegerError(err.to_string())),
+    }
+}
+
+fn boolean_true(_pair: Pair<Rule>, _globals: &mut Context) -> ORResult {
+    Ok(OROk {
+        token: Token::Bool(true),
+    })
+}
+
+fn boolean_false(_pair: Pair<Rule>, _globals: &mut Context) -> ORResult {
+    Ok(OROk {
+        token: Token::Bool(false),
+    })
+}
+
 fn token_op(pair: Pair<Rule>, _globals: &mut Context) -> ORResult {
     Ok(OROk {
         token: Token::Op(pair.as_rule()),
+    })
+}
+
+fn string(pair: Pair<Rule>, _globals: &mut Context) -> ORResult {
+    Ok(OROk {
+        token: Token::String(pair.as_str().into()),
+    })
+}
+
+fn array(pair: Pair<Rule>, globals: &mut Context) -> ORResult {
+    let mut tokens = vec![];
+    for inner_pair in pair.into_inner() {
+        let OROk { token } = oduraja(inner_pair, globals)?;
+        tokens.push(token);
+    }
+    Ok(OROk {
+        token: Token::Array(tokens),
+    })
+}
+
+fn map(pair: Pair<Rule>, globals: &mut Context) -> ORResult {
+    let mut map = HashMap::new();
+    for inner_pair in pair.into_inner() {
+        let mut kv = inner_pair.into_inner();
+        if let OROk {
+            token: Token::String(keyword),
+        } = oduraja(kv.next().expect("Getting keyword from map_pair"), globals)?
+        {
+            let OROk { token } = oduraja(kv.next().expect("Getting value from map_pair"), globals)?;
+            map.insert(keyword, token);
+        } else {
+            unreachable!("Keyword in map MUST always be a String identifier token")
+        }
+    }
+    Ok(OROk {
+        token: Token::Map(map),
     })
 }
 
@@ -245,14 +319,14 @@ fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> ORResult {
         Rule::unary => todo!(),
         Rule::dot_path => todo!(),
         Rule::literal => todo!(),
-        Rule::array => todo!(),
+        Rule::array => array,
         Rule::ident => todo!(),
-        Rule::map => todo!(),
+        Rule::map => map,
         Rule::map_pair => todo!(),
-        Rule::keyword => todo!(),
+        Rule::keyword => string,
         Rule::integer => integer,
-        Rule::float => todo!(),
-        Rule::string => todo!(),
+        Rule::float => float,
+        Rule::string => string,
         Rule::string_content => todo!(),
         Rule::string_delimiter => todo!(),
         Rule::string_escape => todo!(),
@@ -275,8 +349,8 @@ fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> ORResult {
         Rule::binary_operator => token_op,
         Rule::unary_operator => token_op,
         Rule::boolean => todo!(),
-        Rule::boolean_true => todo!(),
-        Rule::boolean_false => todo!(),
+        Rule::boolean_true => boolean_true,
+        Rule::boolean_false => boolean_false,
         Rule::IF => todo!(),
         Rule::ELSE => todo!(),
         Rule::FOR => todo!(),
@@ -298,6 +372,7 @@ fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> ORResult {
         Rule::stmt_continue => todo!(),
         Rule::stmt_return => todo!(),
         Rule::primary => todo!(),
+        Rule::seperator => todo!(),
     };
     op(pair, globals)
 }
@@ -318,7 +393,7 @@ fn main() {
                     }
                 };
             }
-            dbg!(results);
+            // dbg!(results);
         }
         Err(err) => {
             println!("Failed parsing input: {:}", err);

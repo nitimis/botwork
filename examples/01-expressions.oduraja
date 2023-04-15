@@ -1,1 +1,14 @@
-Log |6+5|
+# Literals
+
+# Log |3|
+# Log |2.67|
+Log |-7.62|
+# Log |true|
+# Log |!true|
+# Log |"Hello World"|
+# Log |"Hello \n World"|
+Log |[3, 2.67, -7.62, true, !true, "Hello World"]| 
+# Log |{number: 3, decimal: 2.67, negative: -7.62, boolean: true, not_boolean: !true, string: "Hello World"}|
+
+# Operations
+# Log |6+5|
