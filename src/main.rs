@@ -507,8 +507,8 @@ fn stmt_for(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
         for i in array {
             globals.set_variable(ident.as_str().to_string(), i);
             let result = oduraja(block.clone(), globals)?;
-            let interupt = globals.pop_interupt();
             results.push(result);
+            let interupt = globals.pop_interupt();
             match interupt.kind {
                 InteruptKind::None => (),
                 InteruptKind::Continue => continue,
@@ -526,6 +526,45 @@ fn stmt_for(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
             "FOR loop requires array to iterate over. But found: {}",
             array
         )))
+    }
+}
+
+fn stmt_while(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
+    let mut inner = pair.into_inner();
+    let expr = inner
+        .next()
+        .ok_or(ORErr::ParsingError("Getting ident failed".into()))?;
+    let block = inner
+        .next()
+        .ok_or(ORErr::ParsingError("Getting block failed".into()))?;
+    if inner.next().is_some() {
+        unreachable!("While statment still has unused pairs!");
+    }
+    let mut results = vec![];
+    loop {
+        if let Literal::Bool(should_loop) = oduraja(expr.clone(), globals)? {
+            if !should_loop {
+                return Ok(Literal::Array(results));
+            }
+            let result = oduraja(block.clone(), globals)?;
+            results.push(result);
+            let interupt = globals.pop_interupt();
+            match interupt.kind {
+                InteruptKind::None => (),
+                InteruptKind::Continue => continue,
+                InteruptKind::Break => return Ok(Literal::Array(results)),
+                InteruptKind::Return => {
+                    // push it back because it needs to be habdled by stmt_block
+                    globals.push_interupt(interupt);
+                    return Ok(Literal::Array(results));
+                }
+            }
+            return Ok(Literal::Array(results));
+        } else {
+            return Err(ORErr::OperationIncompatibleError(
+                "While loop requires expressions to return boolean".into(),
+            ));
+        }
     }
 }
 
@@ -597,7 +636,7 @@ fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
         Rule::reserved_parts => todo!(),
         Rule::IN => todo!(),
         Rule::stmt_for => stmt_for,
-        Rule::stmt_while => todo!(),
+        Rule::stmt_while => stmt_while,
         Rule::stmt_try => todo!(),
         Rule::stmt_catch => todo!(),
         Rule::stmt_break => todo!(),

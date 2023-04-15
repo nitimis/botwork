@@ -47,7 +47,9 @@ Log |{bool_true: true, bool_false: false, integer: 3, float: 3.3, string: "Hi, T
 log |a + 10|
 
 
-# IF statments
+###
+IF statments
+###
 
 |a| = |10|
 |b| = |11|
@@ -74,15 +76,36 @@ FOR statement
 
 For |i| in |[1, 2, 3, 4, 5]| {
 	if |i > 3| {
-		Log |"i is greater than 3, breaking..."|
+		Log |"for: i is greater than 3, breaking..."|
 		Break
 	}
 	Log |i|
 }
+
 For |i| in |[1, 2, 3, 4, 5]| {
 	if |i < 3| {
-		Log |"i is lesser than 3, skipping log..."|
+		Log |"for: i is lesser than 3, skipping log..."|
 		Continue
 	}
 	Log |i|
+}
+
+
+###
+While Statement
+###
+
+|i| = |0|
+
+while |i<10| {
+    |i| = |i+1|
+	if |i < 3| {
+		Log |"while: i is lesser than 3, skipping log..."|
+		Continue
+	}
+	log |i|
+	if |i>5| {
+		Log |"while: i is greater than 5, breaking..."|
+		Break
+	}
 }
