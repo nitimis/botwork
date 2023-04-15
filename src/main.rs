@@ -45,14 +45,14 @@ pub enum ORErr {
 }
 
 #[derive(Clone, Debug)]
-enum Token {
+enum Literal {
     None,
     Int(i32),
     Float(f32),
     Bool(bool),
     String(String),
-    Array(Vec<Token>),
-    Map(HashMap<String, Token>),
+    Array(Vec<Literal>),
+    Map(HashMap<String, Literal>),
     Op(Rule),
 }
 
@@ -86,7 +86,7 @@ impl Context {
 }
 
 type ORResult<O, E = ORErr> = Result<O, E>;
-type TokenResult = ORResult<Token>;
+type TokenResult = ORResult<Literal>;
 type Callback = fn(Pair<Rule>, &mut Context) -> TokenResult;
 
 fn hashify(text: &str) -> String {
@@ -119,7 +119,7 @@ fn log_param(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
 }
 
 fn no_op(_pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
-    Ok(Token::None)
+    Ok(Literal::None)
 }
 
 fn stmt_invoke(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
@@ -132,18 +132,18 @@ fn stmt_invoke(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
 }
 
 trait Operate {
-    fn operate_unary(&self, rhs: Token) -> TokenResult;
-    fn operate_binary(&self, lhs: Token, rhs: Token) -> TokenResult;
+    fn operate_unary(&self, rhs: Literal) -> TokenResult;
+    fn operate_binary(&self, lhs: Literal, rhs: Literal) -> TokenResult;
 }
 
 impl Operate for Rule {
-    fn operate_binary(&self, lhs: Token, rhs: Token) -> TokenResult {
+    fn operate_binary(&self, lhs: Literal, rhs: Literal) -> TokenResult {
         match self {
             Rule::multiply => todo!(),
             Rule::divide => todo!(),
             Rule::modulus => todo!(),
             Rule::plus => match (lhs, rhs) {
-                (Token::Int(a), Token::Int(b)) => Ok(Token::Int(a + b)),
+                (Literal::Int(a), Literal::Int(b)) => Ok(Literal::Int(a + b)),
                 rest => Err(ORErr::OperationIncompatibleError(format!("{:?}", rest))),
             },
             Rule::minus => todo!(),
@@ -159,15 +159,15 @@ impl Operate for Rule {
         }
     }
 
-    fn operate_unary(&self, rhs: Token) -> TokenResult {
+    fn operate_unary(&self, rhs: Literal) -> TokenResult {
         match self {
             Rule::minus => match rhs {
-                Token::Int(a) => Ok(Token::Int(-a)),
-                Token::Float(a) => Ok(Token::Float(-a)),
+                Literal::Int(a) => Ok(Literal::Int(-a)),
+                Literal::Float(a) => Ok(Literal::Float(-a)),
                 rest => Err(ORErr::OperationIncompatibleError(format!("{:?}", rest))),
             },
             Rule::logical_not => match rhs {
-                Token::Bool(a) => Ok(Token::Bool(!a)),
+                Literal::Bool(a) => Ok(Literal::Bool(!a)),
                 rest => Err(ORErr::OperationIncompatibleError(format!("{:?}", rest))),
             },
             _ => unreachable!("Unknown unary operator: {:?}", self),
@@ -187,32 +187,32 @@ fn param_invoke(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
 
 fn integer(pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
     match pair.as_str().parse() {
-        Ok(integer) => Ok(Token::Int(integer)),
+        Ok(integer) => Ok(Literal::Int(integer)),
         Err(err) => Err(ORErr::ParsingIntegerError(err.to_string())),
     }
 }
 
 fn float(pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
     match pair.as_str().parse() {
-        Ok(float) => Ok(Token::Float(float)),
+        Ok(float) => Ok(Literal::Float(float)),
         Err(err) => Err(ORErr::ParsingIntegerError(err.to_string())),
     }
 }
 
 fn boolean_true(_pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
-    Ok(Token::Bool(true))
+    Ok(Literal::Bool(true))
 }
 
 fn boolean_false(_pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
-    Ok(Token::Bool(false))
+    Ok(Literal::Bool(false))
 }
 
 fn token_op(pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
-    Ok(Token::Op(pair.as_rule()))
+    Ok(Literal::Op(pair.as_rule()))
 }
 
 fn string(pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
-    Ok(Token::String(pair.as_str().into()))
+    Ok(Literal::String(pair.as_str().into()))
 }
 
 fn array(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
@@ -221,14 +221,14 @@ fn array(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
         let token = oduraja(inner_pair, globals)?;
         tokens.push(token);
     }
-    Ok(Token::Array(tokens))
+    Ok(Literal::Array(tokens))
 }
 
 fn map(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
     let mut map = HashMap::new();
     for inner_pair in pair.into_inner() {
         let mut kv = inner_pair.into_inner();
-        if let Token::String(keyword) =
+        if let Literal::String(keyword) =
             oduraja(kv.next().expect("Getting keyword from map_pair"), globals)?
         {
             let token = oduraja(kv.next().expect("Getting value from map_pair"), globals)?;
@@ -237,7 +237,7 @@ fn map(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
             unreachable!("Keyword in map MUST always be a String identifier token")
         }
     }
-    Ok(Token::Map(map))
+    Ok(Literal::Map(map))
 }
 
 fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
