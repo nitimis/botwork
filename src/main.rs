@@ -86,8 +86,8 @@ impl Context {
 }
 
 type ORResult<O, E = ORErr> = Result<O, E>;
-type TokenResult = ORResult<Literal>;
-type Callback = fn(Pair<Rule>, &mut Context) -> TokenResult;
+type LiteralResult = ORResult<Literal>;
+type Callback = fn(Pair<Rule>, &mut Context) -> LiteralResult;
 
 fn hashify(text: &str) -> String {
     text.replace(' ', "").to_lowercase()
@@ -105,7 +105,7 @@ fn get_stmt_hash(pair: &Pair<Rule>) -> String {
     hash
 }
 
-fn log_param(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
+fn log_param(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let param_pair = pair
         .into_inner()
         .filter(|pair| pair.as_rule() == Rule::param_invoke)
@@ -118,11 +118,11 @@ fn log_param(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
     Ok(dbg!(ok))
 }
 
-fn no_op(_pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
+fn no_op(_pair: Pair<Rule>, _globals: &mut Context) -> LiteralResult {
     Ok(Literal::None)
 }
 
-fn stmt_invoke(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
+fn stmt_invoke(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let hash = get_stmt_hash(&pair);
     if !globals.contains_statement(&hash) {
         return Err(ORErr::StatementNotDefined(pair.as_str().into()));
@@ -132,12 +132,12 @@ fn stmt_invoke(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
 }
 
 trait Operate {
-    fn operate_unary(&self, rhs: Literal) -> TokenResult;
-    fn operate_binary(&self, lhs: Literal, rhs: Literal) -> TokenResult;
+    fn operate_unary(&self, rhs: Literal) -> LiteralResult;
+    fn operate_binary(&self, lhs: Literal, rhs: Literal) -> LiteralResult;
 }
 
 impl Operate for Rule {
-    fn operate_binary(&self, lhs: Literal, rhs: Literal) -> TokenResult {
+    fn operate_binary(&self, lhs: Literal, rhs: Literal) -> LiteralResult {
         match self {
             Rule::multiply => todo!(),
             Rule::divide => todo!(),
@@ -162,7 +162,7 @@ impl Operate for Rule {
         }
     }
 
-    fn operate_unary(&self, rhs: Literal) -> TokenResult {
+    fn operate_unary(&self, rhs: Literal) -> LiteralResult {
         match self {
             Rule::minus => match rhs {
                 Literal::Int(a) => Ok(Literal::Int(-a)),
@@ -178,7 +178,7 @@ impl Operate for Rule {
     }
 }
 
-fn pratt_parse(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
+fn pratt_parse(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let globals = Rc::new(RefCell::new(globals));
     let result = PRATT_PARSER
         .map_primary(|primary| oduraja(primary, &mut globals.borrow_mut()))
@@ -188,25 +188,25 @@ fn pratt_parse(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
     result
 }
 
-fn integer(pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
+fn integer(pair: Pair<Rule>, _globals: &mut Context) -> LiteralResult {
     match pair.as_str().parse() {
         Ok(integer) => Ok(Literal::Int(integer)),
         Err(err) => Err(ORErr::ParsingIntegerError(err.to_string())),
     }
 }
 
-fn float(pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
+fn float(pair: Pair<Rule>, _globals: &mut Context) -> LiteralResult {
     match pair.as_str().parse() {
         Ok(float) => Ok(Literal::Float(float)),
         Err(err) => Err(ORErr::ParsingIntegerError(err.to_string())),
     }
 }
 
-fn boolean_true(_pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
+fn boolean_true(_pair: Pair<Rule>, _globals: &mut Context) -> LiteralResult {
     Ok(Literal::Bool(true))
 }
 
-fn boolean_false(_pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
+fn boolean_false(_pair: Pair<Rule>, _globals: &mut Context) -> LiteralResult {
     Ok(Literal::Bool(false))
 }
 
@@ -215,11 +215,11 @@ fn token_op(pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
     Ok(Literal::Op(pair.as_rule()))
 }*/
 
-fn string(pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
+fn string(pair: Pair<Rule>, _globals: &mut Context) -> LiteralResult {
     Ok(Literal::String(pair.as_str().into()))
 }
 
-fn array(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
+fn array(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let mut tokens = vec![];
     for inner_pair in pair.into_inner() {
         let token = oduraja(inner_pair, globals)?;
@@ -228,7 +228,7 @@ fn array(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
     Ok(Literal::Array(tokens))
 }
 
-fn map(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
+fn map(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let mut map = HashMap::new();
     for inner_pair in pair.into_inner() {
         let mut kv = inner_pair.into_inner();
@@ -244,7 +244,7 @@ fn map(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
     Ok(Literal::Map(map))
 }
 
-fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
+fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let op = match pair.as_rule() {
         Rule::EOI => no_op,
         Rule::WHITESPACE => todo!(),
