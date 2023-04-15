@@ -55,7 +55,6 @@ enum Literal {
     String(String),
     Array(Vec<Literal>),
     Map(HashMap<String, Literal>),
-    //Op(Rule),
 }
 
 #[derive(Clone, Default)]
@@ -144,29 +143,102 @@ impl Operate for Rule {
     fn operate_binary(&self, lhs: Literal, rhs: Literal) -> LiteralResult {
         let err = format!("{:?} {:?} {:?}", lhs, self, rhs);
         let err = Err(ORErr::OperationIncompatibleError(err));
+        use Literal::*;
+        use Rule::*;
         match self {
             // Arithmatic Operations
-            Rule::multiply => todo!(),
-            Rule::divide => todo!(),
-            Rule::modulus => todo!(),
-            Rule::plus => match (lhs, rhs) {
-                (Literal::Int(a), Literal::Int(b)) => Ok(Literal::Int(a + b)),
-                (Literal::Float(a), Literal::Int(b)) => Ok(Literal::Float(a + b as f32)),
-                (Literal::Int(a), Literal::Float(b)) => Ok(Literal::Float(a as f32 + b)),
-                (Literal::Float(a), Literal::Float(b)) => Ok(Literal::Float(a + b)),
+            multiply => match (lhs, rhs) {
+                (Int(a), Int(b)) => Ok(Int(a * b)),
+                (Float(a), Int(b)) => Ok(Float(a * b as f32)),
+                (Int(a), Float(b)) => Ok(Float(a as f32 * b)),
+                (Float(a), Float(b)) => Ok(Float(a * b)),
                 _ => err,
             },
-            Rule::minus => todo!(),
+            divide => match (lhs, rhs) {
+                (Int(a), Int(b)) => Ok(Float(a as f32 / b as f32)),
+                (Float(a), Int(b)) => Ok(Float(a / b as f32)),
+                (Int(a), Float(b)) => Ok(Float(a as f32 / b)),
+                (Float(a), Float(b)) => Ok(Float(a / b)),
+                _ => err,
+            },
+            modulus => match (lhs, rhs) {
+                (Int(a), Int(b)) => Ok(Int(a % b)),
+                (Float(a), Int(b)) => Ok(Float(a % b as f32)),
+                (Int(a), Float(b)) => Ok(Float(a as f32 % b)),
+                (Float(a), Float(b)) => Ok(Float(a % b)),
+                _ => err,
+            },
+            plus => match (lhs, rhs) {
+                (Int(a), Int(b)) => Ok(Int(a + b)),
+                (Float(a), Int(b)) => Ok(Float(a + b as f32)),
+                (Int(a), Float(b)) => Ok(Float(a as f32 + b)),
+                (Float(a), Float(b)) => Ok(Float(a + b)),
+                (String(a), String(b)) => Ok(String(format!("{}{}", a, b))),
+                _ => err,
+            },
+            minus => match (lhs, rhs) {
+                (Int(a), Int(b)) => Ok(Int(a - b)),
+                (Float(a), Int(b)) => Ok(Float(a - b as f32)),
+                (Int(a), Float(b)) => Ok(Float(a as f32 - b)),
+                (Float(a), Float(b)) => Ok(Float(a - b)),
+                _ => err,
+            },
 
             // Binary Operations
-            Rule::less_than => todo!(),
-            Rule::less_than_or_equal => todo!(),
-            Rule::greater_than => todo!(),
-            Rule::greater_than_or_equal => todo!(),
-            Rule::not_equal => todo!(),
-            Rule::equal => todo!(),
-            Rule::logical_and => todo!(),
-            Rule::logical_or => todo!(),
+            less_than => match (lhs, rhs) {
+                (Int(a), Int(b)) => Ok(Bool(a < b)),
+                (Float(a), Int(b)) => Ok(Bool(a < b as f32)),
+                (Int(a), Float(b)) => Ok(Bool((a as f32) < b)),
+                (Float(a), Float(b)) => Ok(Bool(a < b)),
+                _ => err,
+            },
+            less_than_or_equal => match (lhs, rhs) {
+                (Int(a), Int(b)) => Ok(Bool(a <= b)),
+                (Float(a), Int(b)) => Ok(Bool(a <= b as f32)),
+                (Int(a), Float(b)) => Ok(Bool((a as f32) <= b)),
+                (Float(a), Float(b)) => Ok(Bool(a <= b)),
+                _ => err,
+            },
+            greater_than => match (lhs, rhs) {
+                (Int(a), Int(b)) => Ok(Bool(a > b)),
+                (Float(a), Int(b)) => Ok(Bool(a > b as f32)),
+                (Int(a), Float(b)) => Ok(Bool((a as f32) > b)),
+                (Float(a), Float(b)) => Ok(Bool(a > b)),
+                _ => err,
+            },
+            greater_than_or_equal => match (lhs, rhs) {
+                (Int(a), Int(b)) => Ok(Bool(a >= b)),
+                (Float(a), Int(b)) => Ok(Bool(a >= b as f32)),
+                (Int(a), Float(b)) => Ok(Bool((a as f32) >= b)),
+                (Float(a), Float(b)) => Ok(Bool(a >= b)),
+                _ => err,
+            },
+            not_equal => match (lhs, rhs) {
+                (Int(a), Int(b)) => Ok(Bool(a != b)),
+                (Float(a), Int(b)) => Ok(Bool(a != b as f32)),
+                (Int(a), Float(b)) => Ok(Bool((a as f32) != b)),
+                (Float(a), Float(b)) => Ok(Bool(a != b)),
+                (Bool(a), Bool(b)) => Ok(Bool(a != b)),
+                (String(a), String(b)) => Ok(Bool(a != b)),
+                _ => err,
+            },
+            equal => match (lhs, rhs) {
+                (Int(a), Int(b)) => Ok(Bool(a == b)),
+                (Float(a), Int(b)) => Ok(Bool(a == b as f32)),
+                (Int(a), Float(b)) => Ok(Bool((a as f32) == b)),
+                (Float(a), Float(b)) => Ok(Bool(a == b)),
+                (Bool(a), Bool(b)) => Ok(Bool(a == b)),
+                (String(a), String(b)) => Ok(Bool(a == b)),
+                _ => err,
+            },
+            logical_and => match (lhs, rhs) {
+                (Bool(a), Bool(b)) => Ok(Bool(a && b)),
+                _ => err,
+            },
+            logical_or => match (lhs, rhs) {
+                (Bool(a), Bool(b)) => Ok(Bool(a || b)),
+                _ => err,
+            },
             _ => err,
         }
     }
