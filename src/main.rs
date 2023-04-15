@@ -147,7 +147,10 @@ impl Operate for Rule {
                 (Literal::Float(a), Literal::Int(b)) => Ok(Literal::Float(a + b as f32)),
                 (Literal::Int(a), Literal::Float(b)) => Ok(Literal::Float(a as f32 + b)),
                 (Literal::Float(a), Literal::Float(b)) => Ok(Literal::Float(a + b)),
-                rest => Err(ORErr::OperationIncompatibleError(format!("{:?}", rest))),
+                rest => Err(ORErr::OperationIncompatibleError(format!(
+                    "{:?} {:?}",
+                    self, rest
+                ))),
             },
             Rule::minus => todo!(),
             Rule::less_than => todo!(),
@@ -158,7 +161,7 @@ impl Operate for Rule {
             Rule::equal => todo!(),
             Rule::logical_and => todo!(),
             Rule::logical_or => todo!(),
-            _ => unreachable!("Unknown binary operator: {:?}", self),
+            rest => unreachable!("Unknown binary operator: {:?} {:?}", self, rest),
         }
     }
 
@@ -167,13 +170,19 @@ impl Operate for Rule {
             Rule::minus => match rhs {
                 Literal::Int(a) => Ok(Literal::Int(-a)),
                 Literal::Float(a) => Ok(Literal::Float(-a)),
-                rest => Err(ORErr::OperationIncompatibleError(format!("{:?}", rest))),
+                rest => Err(ORErr::OperationIncompatibleError(format!(
+                    "{:?} {:?}",
+                    self, rest
+                ))),
             },
             Rule::logical_not => match rhs {
                 Literal::Bool(a) => Ok(Literal::Bool(!a)),
-                rest => Err(ORErr::OperationIncompatibleError(format!("{:?}", rest))),
+                rest => Err(ORErr::OperationIncompatibleError(format!(
+                    "{:?} {:?}",
+                    self, rest
+                ))),
             },
-            _ => unreachable!("Unknown unary operator: {:?}", self),
+            rest => unreachable!("Unknown unary operator: {:?} {:?}", self, rest),
         }
     }
 }
