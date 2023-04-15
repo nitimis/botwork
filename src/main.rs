@@ -132,54 +132,45 @@ fn stmt_invoke(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
 }
 
 trait Operate {
-    fn operate_unary(&self, rhs: TokenResult) -> TokenResult;
-    fn operate_binary(&self, lhs: TokenResult, rhs: TokenResult) -> TokenResult;
+    fn operate_unary(&self, rhs: Token) -> TokenResult;
+    fn operate_binary(&self, lhs: Token, rhs: Token) -> TokenResult;
 }
 
-impl Operate for TokenResult {
-    fn operate_binary(&self, lhs: TokenResult, rhs: TokenResult) -> TokenResult {
-        match (lhs, self, rhs) {
-            (Ok(lhs), Ok(Token::Op(op)), Ok(rhs)) => match op {
-                Rule::multiply => todo!(),
-                Rule::divide => todo!(),
-                Rule::modulus => todo!(),
-                Rule::plus => match (lhs, rhs) {
-                    (Token::Int(a), Token::Int(b)) => Ok(Token::Int(a + b)),
-                    rest => Err(ORErr::OperationIncompatibleError(format!("{:?}", rest))),
-                },
-                Rule::minus => todo!(),
-                Rule::less_than => todo!(),
-                Rule::less_than_or_equal => todo!(),
-                Rule::greater_than => todo!(),
-                Rule::greater_than_or_equal => todo!(),
-                Rule::not_equal => todo!(),
-                Rule::equal => todo!(),
-                Rule::logical_and => todo!(),
-                Rule::logical_or => todo!(),
-                _ => unreachable!("Unknown Operator {:?}", op),
+impl Operate for Rule {
+    fn operate_binary(&self, lhs: Token, rhs: Token) -> TokenResult {
+        match self {
+            Rule::multiply => todo!(),
+            Rule::divide => todo!(),
+            Rule::modulus => todo!(),
+            Rule::plus => match (lhs, rhs) {
+                (Token::Int(a), Token::Int(b)) => Ok(Token::Int(a + b)),
+                rest => Err(ORErr::OperationIncompatibleError(format!("{:?}", rest))),
             },
-            //TODO: Stack Trace is lost. I am stupid. Need help preserving it :P
-            _ => Err(ORErr::NestedError("Error with Expression".into())),
+            Rule::minus => todo!(),
+            Rule::less_than => todo!(),
+            Rule::less_than_or_equal => todo!(),
+            Rule::greater_than => todo!(),
+            Rule::greater_than_or_equal => todo!(),
+            Rule::not_equal => todo!(),
+            Rule::equal => todo!(),
+            Rule::logical_and => todo!(),
+            Rule::logical_or => todo!(),
+            _ => unreachable!("Unknown binary operator: {:?}", self),
         }
-        // Ok(OROk { token: Token::None })
     }
 
-    fn operate_unary(&self, rhs: TokenResult) -> TokenResult {
-        match (self, rhs) {
-            (Ok(Token::Op(op)), Ok(rhs)) => match op {
-                Rule::minus => match rhs {
-                    Token::Int(a) => Ok(Token::Int(-a)),
-                    Token::Float(a) => Ok(Token::Float(-a)),
-                    rest => Err(ORErr::OperationIncompatibleError(format!("{:?}", rest))),
-                },
-                Rule::logical_not => match rhs {
-                    Token::Bool(a) => Ok(Token::Bool(!a)),
-                    rest => Err(ORErr::OperationIncompatibleError(format!("{:?}", rest))),
-                },
-                _ => unreachable!("Unknown Operator {:?}", op),
+    fn operate_unary(&self, rhs: Token) -> TokenResult {
+        match self {
+            Rule::minus => match rhs {
+                Token::Int(a) => Ok(Token::Int(-a)),
+                Token::Float(a) => Ok(Token::Float(-a)),
+                rest => Err(ORErr::OperationIncompatibleError(format!("{:?}", rest))),
             },
-            // TODO: Stacktrace is lost. I am stupid. Need help preserving it :P
-            _ => Err(ORErr::NestedError("Error with Expression".into())),
+            Rule::logical_not => match rhs {
+                Token::Bool(a) => Ok(Token::Bool(!a)),
+                rest => Err(ORErr::OperationIncompatibleError(format!("{:?}", rest))),
+            },
+            _ => unreachable!("Unknown unary operator: {:?}", self),
         }
     }
 }
@@ -188,14 +179,8 @@ fn param_invoke(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
     let globals = Rc::new(RefCell::new(globals));
     let result = PRATT_PARSER
         .map_primary(|primary| oduraja(primary, &mut globals.borrow_mut()))
-        .map_infix(|lhs, op, rhs| {
-            let op = oduraja(op, &mut globals.borrow_mut());
-            op.operate_binary(lhs, rhs)
-        })
-        .map_prefix(|op, rhs| {
-            let op = oduraja(op, &mut globals.borrow_mut());
-            op.operate_unary(rhs)
-        })
+        .map_infix(|lhs, op, rhs| op.as_rule().operate_binary(lhs?, rhs?))
+        .map_prefix(|op, rhs| op.as_rule().operate_unary(rhs?))
         .parse(pair.into_inner());
     result
 }
