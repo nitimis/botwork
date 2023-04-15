@@ -109,3 +109,23 @@ while |i<10| {
 		Break
 	}
 }
+
+
+###
+Try/Catch
+###
+
+Try {
+    Log |5|
+    Log |"This will always execute"|
+} Catch {
+ 	Log |"This is never execute"|
+}
+
+
+Try {
+    Log |undefined_variable|
+ 	Log |"This will never execute"|
+} Catch {
+    Log |"This will always execute"|
+}

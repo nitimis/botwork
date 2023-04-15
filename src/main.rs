@@ -568,6 +568,25 @@ fn stmt_while(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     }
 }
 
+fn stmt_try(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
+    let mut inner = pair.into_inner();
+    let try_block = inner
+        .next()
+        .ok_or(ORErr::ParsingError("Getting try block failed".into()))?;
+    let catch_block = inner
+        .next()
+        .ok_or(ORErr::ParsingError("Getting catch block failed".into()))?;
+    if inner.next().is_some() {
+        unreachable!("While statment still has unused pairs!");
+    }
+    let try_result = oduraja(try_block, globals);
+    if try_result.is_ok() {
+        try_result
+    } else {
+        oduraja(catch_block, globals)
+    }
+}
+
 fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let op = match pair.as_rule() {
         Rule::EOI => no_op,
@@ -637,8 +656,8 @@ fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
         Rule::IN => todo!(),
         Rule::stmt_for => stmt_for,
         Rule::stmt_while => stmt_while,
-        Rule::stmt_try => todo!(),
-        Rule::stmt_catch => todo!(),
+        Rule::stmt_try => stmt_try,
+        Rule::stmt_catch => stmt_block,
         Rule::stmt_break => todo!(),
         Rule::stmt_continue => todo!(),
         Rule::stmt_return => todo!(),
