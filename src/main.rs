@@ -20,6 +20,7 @@ lazy_static::lazy_static! {
             .op(Op::infix(plus, Left) | Op::infix(minus, Left) | Op::infix(logical_or, Left) )
             .op(Op::infix(multiply, Left) | Op::infix(divide, Left) | Op::infix(modulus, Left) |Op::infix(logical_and, Left) )
             .op(Op::prefix(minus) | Op::prefix(logical_not))
+            .op(Op::infix(less_than, Left) | Op::infix(less_than_or_equal, Left) | Op::infix(greater_than, Left) | Op::infix(greater_than_or_equal, Left) | Op::infix(not_equal, Left) | Op::infix(equal, Left))
     };
 }
 
@@ -42,7 +43,7 @@ pub enum ORErr {
     OperationIncompatibleError(String),
     #[error("Operator not found")]
     OperatorNotFoundError(String),
-    #[error("Operaands not found")]
+    #[error("Operands not found")]
     OperandsNotFound(String),
 }
 
@@ -296,11 +297,6 @@ fn boolean_false(_pair: Pair<Rule>, _globals: &mut Context) -> LiteralResult {
     Ok(Literal::Bool(false))
 }
 
-/*
-fn token_op(pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
-    Ok(Literal::Op(pair.as_rule()))
-}*/
-
 fn string(pair: Pair<Rule>, _globals: &mut Context) -> LiteralResult {
     Ok(Literal::String(pair.as_str().into()))
 }
@@ -352,7 +348,7 @@ fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
         Rule::COMMENT => todo!(),
         Rule::comment_block => todo!(),
         Rule::comment_line => todo!(),
-        Rule::expression => todo!(),
+        Rule::expression => pratt_parse,
         Rule::infix => todo!(),
         Rule::expression_inner => todo!(),
         Rule::unary => pratt_parse,

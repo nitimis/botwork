@@ -10,6 +10,6 @@ Log |"Hello \n World"|
 Log |[3, 2.67, -7.62, true, !true, "Hello World"]| 
 Log |{number: 3, decimal: 2.67, negative: -7.62, boolean: true, not_boolean: !true, string: "Hello World"}|
 
-# Operations
+# Compound Operations
 
-Log |6+"5"|
+Log |[6+5, 3] + [{a:5}] + [(5+5)*3, 3==6, 4!=1, !true]|
