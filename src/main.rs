@@ -138,7 +138,10 @@ trait Operate {
 
 impl Operate for Rule {
     fn operate_binary(&self, lhs: Literal, rhs: Literal) -> LiteralResult {
+        let err = format!("{:?} {:?} {:?}", lhs, self, rhs);
+        let err = Err(ORErr::OperationIncompatibleError(err));
         match self {
+            // Arithmatic Operations
             Rule::multiply => todo!(),
             Rule::divide => todo!(),
             Rule::modulus => todo!(),
@@ -147,12 +150,11 @@ impl Operate for Rule {
                 (Literal::Float(a), Literal::Int(b)) => Ok(Literal::Float(a + b as f32)),
                 (Literal::Int(a), Literal::Float(b)) => Ok(Literal::Float(a as f32 + b)),
                 (Literal::Float(a), Literal::Float(b)) => Ok(Literal::Float(a + b)),
-                rest => Err(ORErr::OperationIncompatibleError(format!(
-                    "{:?} {:?}",
-                    self, rest
-                ))),
+                _ => err,
             },
             Rule::minus => todo!(),
+
+            // Binary Operations
             Rule::less_than => todo!(),
             Rule::less_than_or_equal => todo!(),
             Rule::greater_than => todo!(),
@@ -161,28 +163,24 @@ impl Operate for Rule {
             Rule::equal => todo!(),
             Rule::logical_and => todo!(),
             Rule::logical_or => todo!(),
-            rest => unreachable!("Unknown binary operator: {:?} {:?}", self, rest),
+            _ => err,
         }
     }
 
     fn operate_unary(&self, rhs: Literal) -> LiteralResult {
+        let err = format!("{:?} {:?}", self, rhs);
+        let err = Err(ORErr::OperationIncompatibleError(err));
         match self {
             Rule::minus => match rhs {
                 Literal::Int(a) => Ok(Literal::Int(-a)),
                 Literal::Float(a) => Ok(Literal::Float(-a)),
-                rest => Err(ORErr::OperationIncompatibleError(format!(
-                    "{:?} {:?}",
-                    self, rest
-                ))),
+                _ => err,
             },
             Rule::logical_not => match rhs {
                 Literal::Bool(a) => Ok(Literal::Bool(!a)),
-                rest => Err(ORErr::OperationIncompatibleError(format!(
-                    "{:?} {:?}",
-                    self, rest
-                ))),
+                _ => err,
             },
-            rest => unreachable!("Unknown unary operator: {:?} {:?}", self, rest),
+            _ => err,
         }
     }
 }
