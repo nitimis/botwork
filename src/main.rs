@@ -75,9 +75,11 @@ impl Context {
         }
     }
 
+    /*
     fn contains_variable(&self, name: &String) -> bool {
         self.variables.contains_key(name)
     }
+    */
 
     fn set_variable(&mut self, name: String, literal: Literal) -> Option<Literal> {
         self.variables.insert(name, literal)
@@ -361,6 +363,38 @@ fn ident(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     globals.get_variable(&ident)
 }
 
+fn stmt_if(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
+    let mut inner = pair.clone().into_inner();
+    let condition = inner
+        .next()
+        .ok_or(ORErr::ParsingError("Getting condition failed".into()))?;
+    let block = inner
+        .next()
+        .ok_or(ORErr::ParsingError("Getting true block failed".into()))?;
+    let condition = oduraja(condition, globals)?;
+    if let Literal::Bool(is_true) = condition {
+        if is_true {
+            oduraja(block, globals)
+        } else {
+            match inner.next() {
+                Some(block) => oduraja(block, globals),
+                None => no_op(pair, globals),
+            }
+        }
+    } else {
+        Err(ORErr::OperationIncompatibleError(
+            "The conditional expression in `If` should always evaluvate to boolean value".into(),
+        ))
+    }
+}
+fn stmt_block(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
+    let block = pair
+        .into_inner()
+        .next()
+        .ok_or(ORErr::ParsingError("Getting else block failed".into()))?;
+    oduraja(block, globals)
+}
+
 fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let op = match pair.as_rule() {
         Rule::EOI => no_op,
@@ -424,8 +458,8 @@ fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
         Rule::WHILE => todo!(),
         Rule::TRY => todo!(),
         Rule::CATCH => todo!(),
-        Rule::stmt_if => todo!(),
-        Rule::stmt_else => todo!(),
+        Rule::stmt_if => stmt_if,
+        Rule::stmt_else => stmt_block,
         Rule::reserved_parts => todo!(),
         Rule::IN => todo!(),
         Rule::stmt_for => todo!(),
@@ -436,13 +470,14 @@ fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
         Rule::stmt_continue => todo!(),
         Rule::stmt_return => todo!(),
         Rule::primary => todo!(),
-        Rule::seperator => todo!(),
+        Rule::seperator => no_op,
+        Rule::stmt_block => stmt_block,
     };
     op(pair, globals)
 }
 
 fn main() {
-    let source = read_to_string("examples/01-expressions.oduraja").unwrap();
+    let source = read_to_string("examples/02-syntaxes.oduraja").unwrap();
     match parser::Parser::parse(Rule::oduraja, &source) {
         Ok(tree) => {
             let mut context = Context::default();

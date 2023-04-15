@@ -1,0 +1,59 @@
+# This is a single line comment.
+
+###
+This is a multi
+line comment
+###
+
+# A very basic log statement
+
+Log |"Hello, World!"|
+
+###
+As you will see, a statement is a plain english sentence with zero or more parameters.
+parametes are expressions/literals enclosed within pipe symbol `|`.
+Each line is a single statment. And all statements are case-insensitive (but the variables used inside parameters are still case-sensitive). 
+Statements (except assignment) cannot begin with parameters.
+Statements cannot also begin with reserved keywords like (if, for, while, else, return, continue, etc).
+But it can still contain the reserved keyworkds in the middle of the statement
+They also cannot contain curly-braces "{", "}", pound sign "#", or new lines.
+Every statement will always return a Literal (None, Bool, Int, Float, String, Array, Map)
+###
+
+# Here are some different ways you can write the same `Log` statement in
+# They all do the same as the Log statement above
+
+log |"Hello, World!"|
+LOG |"Hello, World!"|
+Log|"Hello, World!"|
+Log   |"Hello, World!"|
+   Log   |"Hello, World!"|
+
+
+# Assignment statments: It always starts with a parameter followed by `=`
+# The RHS can be a parameter or a sentence.
+
+|a| = |(4 + 5) * 6|
+log |a + 10|
+
+
+# IF statments
+
+|a| = |10|
+|b| = |11|
+
+If | a>b | {
+	Log |"This will never get logged!"|
+} 
+
+If | a>b | {
+	Log |"a is greater"|
+} else {
+	Log |"b is greater"|
+}
+
+If | b>a | {
+	Log |"b is greater again"|
+}  else {
+	Log |"a is greater"|
+}
