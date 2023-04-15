@@ -14,8 +14,8 @@ As you will see, a statement is a plain english sentence with zero or more param
 parametes are expressions/literals enclosed within pipe symbol `|`.
 Each line is a single statment. And all statements are case-insensitive (but the variables used inside parameters are still case-sensitive). 
 Statements (except assignment) cannot begin with parameters.
-Statements cannot also begin with reserved keywords like (if, for, while, else, return, continue, etc).
-But it can still contain the reserved keyworkds in the middle of the statement
+Statements cannot begin with reserved keywords like (if, for, while, else, return, continue, etc).
+But it can still contain the reserved keywords in the middle of the statement
 They also cannot contain curly-braces "{", "}", pound sign "#", or new lines.
 Every statement will always return a Literal (None, Bool, Int, Float, String, Array, Map)
 ###
@@ -29,6 +29,15 @@ Log|"Hello, World!"|
 Log   |"Hello, World!"|
    Log   |"Hello, World!"|
 
+# Data Types (Bool, Int, Float, String, Array, Map)
+
+Log |true|
+Log |false|
+Log |3|
+Log |3.3|
+Log |"Hi, There!"|
+Log |[true, false, 3, 3.3, "Hi, There!"]|
+Log |{bool_true: true, bool_false: false, integer: 3, float: 3.3, string: "Hi, There!", array: [1, 1.3], dict: {key: "value"}}|
 
 # Assignment statments: It always starts with a parameter followed by `=`
 # The RHS can be a parameter or a sentence.
