@@ -343,7 +343,7 @@ fn main() {
                     Ok(ok) => results.push(ok),
                     Err(err) => {
                         dbg!(err);
-                        panic!()
+                        break;
                     }
                 };
             }

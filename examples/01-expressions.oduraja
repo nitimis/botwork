@@ -12,4 +12,4 @@ Log |{number: 3, decimal: 2.67, negative: -7.62, boolean: true, not_boolean: !tr
 
 # Operations
 
-Log |6+5|
+Log |6+"5"|
