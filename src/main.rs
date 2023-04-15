@@ -33,6 +33,8 @@ pub enum ORErr {
     #[error("Parameter missing error")]
     ParameterMissingError(String),
     #[error("Parsing integer error")]
+    ParsingError(String),
+    #[error("Parsing integer error")]
     ParsingIntegerError(String),
     #[error("Nested error")]
     NestedError(String),
@@ -241,13 +243,19 @@ fn map(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let mut map = HashMap::new();
     for inner_pair in pair.into_inner() {
         let mut kv = inner_pair.into_inner();
-        if let Literal::String(keyword) =
-            oduraja(kv.next().expect("Getting keyword from map_pair"), globals)?
-        {
-            let token = oduraja(kv.next().expect("Getting value from map_pair"), globals)?;
-            map.insert(keyword, token);
+        let keyword = kv
+            .next()
+            .ok_or(ORErr::ParsingError("Getting keyword from map_pair".into()))?;
+        let value = kv
+            .next()
+            .ok_or(ORErr::ParsingError("Getting keyword from map_pair".into()))?;
+        if let Literal::String(keyword) = oduraja(keyword, globals)? {
+            let value = oduraja(value, globals)?;
+            map.insert(keyword, value);
         } else {
-            unreachable!("Keyword in map MUST always be a String identifier token")
+            return Err(ORErr::ParsingError(
+                "Keyword in map MUST always be a String identifier token".into(),
+            ));
         }
     }
     Ok(Literal::Map(map))
