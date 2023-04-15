@@ -23,12 +23,6 @@ lazy_static::lazy_static! {
     };
 }
 
-/// Odu Raja Ok
-#[derive(Debug)]
-struct OROk {
-    token: Token,
-}
-
 /// Ode Raja Err
 #[derive(Error, Debug)]
 pub enum ORErr {
@@ -91,8 +85,9 @@ impl Context {
     }
 }
 
-type ORResult = Result<OROk, ORErr>;
-type Callback = fn(Pair<Rule>, &mut Context) -> ORResult;
+type ORResult<O, E = ORErr> = Result<O, E>;
+type TokenResult = ORResult<Token>;
+type Callback = fn(Pair<Rule>, &mut Context) -> TokenResult;
 
 fn hashify(text: &str) -> String {
     text.replace(' ', "").to_lowercase()
@@ -110,7 +105,7 @@ fn get_stmt_hash(pair: &Pair<Rule>) -> String {
     hash
 }
 
-fn log_param(pair: Pair<Rule>, globals: &mut Context) -> ORResult {
+fn log_param(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
     let param_pair = pair
         .into_inner()
         .filter(|pair| pair.as_rule() == Rule::param_invoke)
@@ -120,15 +115,14 @@ fn log_param(pair: Pair<Rule>, globals: &mut Context) -> ORResult {
         ))?;
     let ok = oduraja(param_pair, globals)?;
     // TODO Implement Display for token
-    dbg!(&ok.token);
-    Ok(ok)
+    Ok(dbg!(ok))
 }
 
-fn no_op(_pair: Pair<Rule>, _globals: &mut Context) -> ORResult {
-    Ok(OROk { token: Token::None })
+fn no_op(_pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
+    Ok(Token::None)
 }
 
-fn stmt_invoke(pair: Pair<Rule>, globals: &mut Context) -> ORResult {
+fn stmt_invoke(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
     let hash = get_stmt_hash(&pair);
     if !globals.contains_statement(&hash) {
         return Err(ORErr::StatementNotDefined(pair.as_str().into()));
@@ -138,27 +132,19 @@ fn stmt_invoke(pair: Pair<Rule>, globals: &mut Context) -> ORResult {
 }
 
 trait Operate {
-    fn operate_unary(&self, rhs: ORResult) -> ORResult;
-    fn operate_binary(&self, lhs: ORResult, rhs: ORResult) -> ORResult;
+    fn operate_unary(&self, rhs: TokenResult) -> TokenResult;
+    fn operate_binary(&self, lhs: TokenResult, rhs: TokenResult) -> TokenResult;
 }
 
-impl Operate for ORResult {
-    fn operate_binary(&self, lhs: ORResult, rhs: ORResult) -> ORResult {
+impl Operate for TokenResult {
+    fn operate_binary(&self, lhs: TokenResult, rhs: TokenResult) -> TokenResult {
         match (lhs, self, rhs) {
-            (
-                Ok(OROk { token: lhs }),
-                Ok(OROk {
-                    token: Token::Op(op),
-                }),
-                Ok(OROk { token: rhs }),
-            ) => match op {
+            (Ok(lhs), Ok(Token::Op(op)), Ok(rhs)) => match op {
                 Rule::multiply => todo!(),
                 Rule::divide => todo!(),
                 Rule::modulus => todo!(),
                 Rule::plus => match (lhs, rhs) {
-                    (Token::Int(a), Token::Int(b)) => Ok(OROk {
-                        token: Token::Int(a + b),
-                    }),
+                    (Token::Int(a), Token::Int(b)) => Ok(Token::Int(a + b)),
                     rest => Err(ORErr::OperationIncompatibleError(format!("{:?}", rest))),
                 },
                 Rule::minus => todo!(),
@@ -178,27 +164,16 @@ impl Operate for ORResult {
         // Ok(OROk { token: Token::None })
     }
 
-    fn operate_unary(&self, rhs: ORResult) -> ORResult {
+    fn operate_unary(&self, rhs: TokenResult) -> TokenResult {
         match (self, rhs) {
-            (
-                Ok(OROk {
-                    token: Token::Op(op),
-                }),
-                Ok(OROk { token: rhs }),
-            ) => match op {
+            (Ok(Token::Op(op)), Ok(rhs)) => match op {
                 Rule::minus => match rhs {
-                    Token::Int(a) => Ok(OROk {
-                        token: Token::Int(-a),
-                    }),
-                    Token::Float(a) => Ok(OROk {
-                        token: Token::Float(-a),
-                    }),
+                    Token::Int(a) => Ok(Token::Int(-a)),
+                    Token::Float(a) => Ok(Token::Float(-a)),
                     rest => Err(ORErr::OperationIncompatibleError(format!("{:?}", rest))),
                 },
                 Rule::logical_not => match rhs {
-                    Token::Bool(a) => Ok(OROk {
-                        token: Token::Bool(!a),
-                    }),
+                    Token::Bool(a) => Ok(Token::Bool(!a)),
                     rest => Err(ORErr::OperationIncompatibleError(format!("{:?}", rest))),
                 },
                 _ => unreachable!("Unknown Operator {:?}", op),
@@ -209,7 +184,7 @@ impl Operate for ORResult {
     }
 }
 
-fn param_invoke(pair: Pair<Rule>, globals: &mut Context) -> ORResult {
+fn param_invoke(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
     let globals = Rc::new(RefCell::new(globals));
     let result = PRATT_PARSER
         .map_primary(|primary| oduraja(primary, &mut globals.borrow_mut()))
@@ -225,79 +200,62 @@ fn param_invoke(pair: Pair<Rule>, globals: &mut Context) -> ORResult {
     result
 }
 
-fn integer(pair: Pair<Rule>, _globals: &mut Context) -> ORResult {
+fn integer(pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
     match pair.as_str().parse() {
-        Ok(integer) => Ok(OROk {
-            token: Token::Int(integer),
-        }),
+        Ok(integer) => Ok(Token::Int(integer)),
         Err(err) => Err(ORErr::ParsingIntegerError(err.to_string())),
     }
 }
 
-fn float(pair: Pair<Rule>, _globals: &mut Context) -> ORResult {
+fn float(pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
     match pair.as_str().parse() {
-        Ok(float) => Ok(OROk {
-            token: Token::Float(float),
-        }),
+        Ok(float) => Ok(Token::Float(float)),
         Err(err) => Err(ORErr::ParsingIntegerError(err.to_string())),
     }
 }
 
-fn boolean_true(_pair: Pair<Rule>, _globals: &mut Context) -> ORResult {
-    Ok(OROk {
-        token: Token::Bool(true),
-    })
+fn boolean_true(_pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
+    Ok(Token::Bool(true))
 }
 
-fn boolean_false(_pair: Pair<Rule>, _globals: &mut Context) -> ORResult {
-    Ok(OROk {
-        token: Token::Bool(false),
-    })
+fn boolean_false(_pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
+    Ok(Token::Bool(false))
 }
 
-fn token_op(pair: Pair<Rule>, _globals: &mut Context) -> ORResult {
-    Ok(OROk {
-        token: Token::Op(pair.as_rule()),
-    })
+fn token_op(pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
+    Ok(Token::Op(pair.as_rule()))
 }
 
-fn string(pair: Pair<Rule>, _globals: &mut Context) -> ORResult {
-    Ok(OROk {
-        token: Token::String(pair.as_str().into()),
-    })
+fn string(pair: Pair<Rule>, _globals: &mut Context) -> TokenResult {
+    Ok(Token::String(pair.as_str().into()))
 }
 
-fn array(pair: Pair<Rule>, globals: &mut Context) -> ORResult {
+fn array(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
     let mut tokens = vec![];
     for inner_pair in pair.into_inner() {
-        let OROk { token } = oduraja(inner_pair, globals)?;
+        let token = oduraja(inner_pair, globals)?;
         tokens.push(token);
     }
-    Ok(OROk {
-        token: Token::Array(tokens),
-    })
+    Ok(Token::Array(tokens))
 }
 
-fn map(pair: Pair<Rule>, globals: &mut Context) -> ORResult {
+fn map(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
     let mut map = HashMap::new();
     for inner_pair in pair.into_inner() {
         let mut kv = inner_pair.into_inner();
-        if let OROk {
-            token: Token::String(keyword),
-        } = oduraja(kv.next().expect("Getting keyword from map_pair"), globals)?
+        if let Token::String(keyword) =
+            oduraja(kv.next().expect("Getting keyword from map_pair"), globals)?
         {
-            let OROk { token } = oduraja(kv.next().expect("Getting value from map_pair"), globals)?;
+            let token = oduraja(kv.next().expect("Getting value from map_pair"), globals)?;
             map.insert(keyword, token);
         } else {
             unreachable!("Keyword in map MUST always be a String identifier token")
         }
     }
-    Ok(OROk {
-        token: Token::Map(map),
-    })
+    Ok(Token::Map(map))
 }
 
-fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> ORResult {
+fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> TokenResult {
     let op = match pair.as_rule() {
         Rule::EOI => no_op,
         Rule::WHITESPACE => todo!(),
@@ -386,7 +344,7 @@ fn main() {
             let mut results = Vec::new();
             for pair in tree {
                 match oduraja(pair, &mut context) {
-                    Ok(ok) => results.push(ok.token),
+                    Ok(ok) => results.push(ok),
                     Err(err) => {
                         dbg!(err);
                         panic!()
