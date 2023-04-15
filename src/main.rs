@@ -20,7 +20,14 @@ lazy_static::lazy_static! {
             .op(Op::infix(plus, Left) | Op::infix(minus, Left) | Op::infix(logical_or, Left) )
             .op(Op::infix(multiply, Left) | Op::infix(divide, Left) | Op::infix(modulus, Left) |Op::infix(logical_and, Left) )
             .op(Op::prefix(minus) | Op::prefix(logical_not))
-            .op(Op::infix(less_than, Left) | Op::infix(less_than_or_equal, Left) | Op::infix(greater_than, Left) | Op::infix(greater_than_or_equal, Left) | Op::infix(not_equal, Left) | Op::infix(equal, Left))
+            .op(
+            Op::infix(less_than, Left)
+            | Op::infix(less_than_or_equal, Left)
+            | Op::infix(greater_than, Left)
+            | Op::infix(greater_than_or_equal, Left)
+            | Op::infix(not_equal, Left)
+            | Op::infix(equal, Left)
+        )
     };
 }
 
