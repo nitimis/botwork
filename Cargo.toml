@@ -11,7 +11,11 @@ readme = "README.md"
 keywords = ["botwork", "robotframework", "testing", "ATDD", "rpa"]
 categories = ["science::robotics", "development-tools", "development-tools::testing"]
 
+[lib]
+name = "botwork"
 
+[[bin]]
+name = "botwork"
 
 [dependencies]
 lazy_static = "1.4.0"

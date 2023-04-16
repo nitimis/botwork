@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use thiserror::Error;
 
 #[derive(Parser)]
-#[grammar = "src/grammar.pest"]
+#[grammar = "src/core/grammar.pest"]
 pub struct BWParser;
 
 lazy_static::lazy_static! {
