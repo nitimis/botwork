@@ -8,7 +8,7 @@ documentation = "https://docs.rs/botwork"
 homepage = "https://github.com/nitimis/botwork"
 repository = "https://github.com/nitimis/botwork"
 readme = "README.md"
-keywords = ["botwork", "robotframework", "acceptance", "testing", "ATDD", "rpa", "robotic-process-automation"]
+keywords = ["botwork", "robotframework", "testing", "ATDD", "rpa"]
 categories = ["science::robotics", "development-tools", "development-tools::testing"]
 
 
