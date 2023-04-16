@@ -1,5 +1,5 @@
 WHITESPACE = _{ (" " | "\t")+ }
-oduraja    = _{ SOI ~ statements* ~ EOI }
+botwork    = _{ SOI ~ statements* ~ EOI }
 reserved   =  { "true" | "false" | "and" | "or" }
 
 // Special statements. Can cause changes to program behaviour.

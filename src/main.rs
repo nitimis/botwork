@@ -32,9 +32,9 @@ lazy_static::lazy_static! {
     };
 }
 
-/// Ode Raja Err
+/// botwork Err
 #[derive(Error, Debug)]
-pub enum ORErr {
+pub enum BWErr {
     #[error("Variable not defined")]
     VariableNotDefined(String),
     #[error("Statement not defined")]
@@ -106,7 +106,7 @@ impl Context {
     fn get_variable(&self, name: &String) -> LiteralResult {
         match self.variables.get(name) {
             Some(value) => Ok(value.to_owned()),
-            None => Err(ORErr::VariableNotDefined(format!(
+            None => Err(BWErr::VariableNotDefined(format!(
                 "Varaible not defined: {}",
                 name
             ))),
@@ -200,7 +200,7 @@ impl Context {
     }
 }
 
-type ORResult<O, E = ORErr> = Result<O, E>;
+type ORResult<O, E = BWErr> = Result<O, E>;
 type LiteralResult = ORResult<Literal>;
 type Callback = fn(Pair<Rule>, &mut Context) -> LiteralResult;
 
@@ -225,10 +225,10 @@ fn log_param(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
         .into_inner()
         .filter(|pair| pair.as_rule() == Rule::param_invoke)
         .last()
-        .ok_or(ORErr::ParameterMissingError(
+        .ok_or(BWErr::ParameterMissingError(
             "`Log {param}` requires atleast 1 parameter".into(),
         ))?;
-    let ok = oduraja(param_pair, globals)?;
+    let ok = botwork(param_pair, globals)?;
     // TODO Implement Display for token
     Ok(dbg!(ok))
 }
@@ -240,28 +240,28 @@ fn no_op(_pair: Pair<Rule>, _globals: &mut Context) -> LiteralResult {
 fn stmt_invoke(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let hash = get_stmt_hash(&pair);
     if !globals.contains_statement(&hash) {
-        return Err(ORErr::StatementNotDefined(pair.as_str().into()));
+        return Err(BWErr::StatementNotDefined(pair.as_str().into()));
     }
     let mut statement: Option<StmtType> = None;
     globals.get_statement(&hash, &mut statement);
-    let statement = statement.ok_or(ORErr::VariableNotDefined(pair.as_str().into()))?;
+    let statement = statement.ok_or(BWErr::VariableNotDefined(pair.as_str().into()))?;
     match statement {
         StmtType::None => unreachable!("None is just a default!"),
         StmtType::Native(statement) => statement(pair, globals),
         StmtType::UserDefined { header, block } => {
             //TODO: Zip parameter names from header & insert it onto globals
             let mut header = parser::Parser::parse(Rule::stmt_header, &header)
-                .map_err(|_| ORErr::ParsingError("Parsing cached header failed".into()))?;
+                .map_err(|_| BWErr::ParsingError("Parsing cached header failed".into()))?;
             let mut block = parser::Parser::parse(Rule::stmt_block, &block)
-                .map_err(|_| ORErr::ParsingError("Parsing cached block failed".into()))?;
+                .map_err(|_| BWErr::ParsingError("Parsing cached block failed".into()))?;
             let stmt_header = header
                 .next()
-                .ok_or(ORErr::ParsingError("No header pair found in Pairs".into()))?;
+                .ok_or(BWErr::ParsingError("No header pair found in Pairs".into()))?;
             let stmt_block = block
                 .next()
-                .ok_or(ORErr::ParsingError("No Block pair found in Pairs".into()))?;
+                .ok_or(BWErr::ParsingError("No Block pair found in Pairs".into()))?;
             if header.count() != 0 || block.count() != 0 {
-                return Err(ORErr::ParsingError(
+                return Err(BWErr::ParsingError(
                     "More cached header/block pair found!".into(),
                 ));
             }
@@ -274,10 +274,10 @@ fn stmt_invoke(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
                 .filter(|pair| pair.as_rule() == Rule::param_invoke);
             // .collect::<Vec<Pair<Rule>>>();
             for (ident, param_invoke) in idents.zip(param_invoks) {
-                let literal = oduraja(param_invoke, globals)?;
+                let literal = botwork(param_invoke, globals)?;
                 globals.set_variable(ident.as_str().into(), literal);
             }
-            oduraja(stmt_block, globals)
+            botwork(stmt_block, globals)
         }
     }
 }
@@ -290,7 +290,7 @@ trait Operate {
 impl Operate for Rule {
     fn operate_binary(&self, lhs: Literal, rhs: Literal) -> LiteralResult {
         let err = format!("{:?} {:?} {:?}", lhs, self, rhs);
-        let err = Err(ORErr::OperationIncompatibleError(err));
+        let err = Err(BWErr::OperationIncompatibleError(err));
         use Literal::*;
         use Rule::*;
         match self {
@@ -402,7 +402,7 @@ impl Operate for Rule {
 
     fn operate_unary(&self, rhs: Literal) -> LiteralResult {
         let err = format!("{:?} {:?}", self, rhs);
-        let err = Err(ORErr::OperationIncompatibleError(err));
+        let err = Err(BWErr::OperationIncompatibleError(err));
         match self {
             Rule::minus => match rhs {
                 Literal::Int(a) => Ok(Literal::Int(-a)),
@@ -421,7 +421,7 @@ impl Operate for Rule {
 fn pratt_parse(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let globals = Rc::new(RefCell::new(globals));
     let result = PRATT_PARSER
-        .map_primary(|primary| oduraja(primary, &mut globals.borrow_mut()))
+        .map_primary(|primary| botwork(primary, &mut globals.borrow_mut()))
         .map_infix(|lhs, op, rhs| op.as_rule().operate_binary(lhs?, rhs?))
         .map_prefix(|op, rhs| op.as_rule().operate_unary(rhs?))
         .parse(pair.into_inner());
@@ -431,14 +431,14 @@ fn pratt_parse(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
 fn integer(pair: Pair<Rule>, _globals: &mut Context) -> LiteralResult {
     match pair.as_str().parse() {
         Ok(integer) => Ok(Literal::Int(integer)),
-        Err(err) => Err(ORErr::ParsingIntegerError(err.to_string())),
+        Err(err) => Err(BWErr::ParsingIntegerError(err.to_string())),
     }
 }
 
 fn float(pair: Pair<Rule>, _globals: &mut Context) -> LiteralResult {
     match pair.as_str().parse() {
         Ok(float) => Ok(Literal::Float(float)),
-        Err(err) => Err(ORErr::ParsingIntegerError(err.to_string())),
+        Err(err) => Err(BWErr::ParsingIntegerError(err.to_string())),
     }
 }
 
@@ -457,7 +457,7 @@ fn string(pair: Pair<Rule>, _globals: &mut Context) -> LiteralResult {
 fn array(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let mut tokens = vec![];
     for inner_pair in pair.into_inner() {
-        let token = oduraja(inner_pair, globals)?;
+        let token = botwork(inner_pair, globals)?;
         tokens.push(token);
     }
     Ok(Literal::Array(tokens))
@@ -469,18 +469,18 @@ fn map(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
         let mut kv = inner_pair.into_inner();
         let keyword = kv
             .next()
-            .ok_or(ORErr::ParsingError("Getting keyword from map_pair".into()))?;
+            .ok_or(BWErr::ParsingError("Getting keyword from map_pair".into()))?;
         let value = kv
             .next()
-            .ok_or(ORErr::ParsingError("Getting keyword from map_pair".into()))?;
+            .ok_or(BWErr::ParsingError("Getting keyword from map_pair".into()))?;
         if kv.next().is_some() {
             unreachable!("Map statment still has unused pairs!");
         }
-        if let Literal::String(keyword) = oduraja(keyword, globals)? {
-            let value = oduraja(value, globals)?;
+        if let Literal::String(keyword) = botwork(keyword, globals)? {
+            let value = botwork(value, globals)?;
             map.insert(keyword, value);
         } else {
-            return Err(ORErr::ParsingError(
+            return Err(BWErr::ParsingError(
                 "Keyword in map MUST always be a String identifier token".into(),
             ));
         }
@@ -492,16 +492,16 @@ fn stmt_assign(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let mut inner = pair.into_inner();
     let ident = inner
         .next()
-        .ok_or(ORErr::ParsingError("Getting ident failed".into()))?
+        .ok_or(BWErr::ParsingError("Getting ident failed".into()))?
         .as_str()
         .to_string();
     let value = inner
         .next()
-        .ok_or(ORErr::ParsingError("Getting value failed".into()))?;
+        .ok_or(BWErr::ParsingError("Getting value failed".into()))?;
     if inner.next().is_some() {
         unreachable!("Assignment statment still has unused pairs!");
     }
-    let value = oduraja(value, globals)?;
+    let value = botwork(value, globals)?;
     globals.set_variable(ident, value.clone());
     Ok(value)
 }
@@ -515,18 +515,18 @@ fn stmt_if(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let mut inner = pair.clone().into_inner();
     let condition = inner
         .next()
-        .ok_or(ORErr::ParsingError("Getting condition failed".into()))?;
+        .ok_or(BWErr::ParsingError("Getting condition failed".into()))?;
     let block = inner
         .next()
-        .ok_or(ORErr::ParsingError("Getting true block failed".into()))?;
-    let condition = oduraja(condition, globals)?;
+        .ok_or(BWErr::ParsingError("Getting true block failed".into()))?;
+    let condition = botwork(condition, globals)?;
     if let Literal::Bool(is_true) = condition {
         if is_true {
-            oduraja(block, globals)
+            botwork(block, globals)
         } else {
             match inner.next() {
                 Some(block) => {
-                    let result = oduraja(block, globals);
+                    let result = botwork(block, globals);
                     if inner.next().is_some() {
                         unreachable!("If statment still has unused pairs!");
                     }
@@ -536,7 +536,7 @@ fn stmt_if(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
             }
         }
     } else {
-        Err(ORErr::OperationIncompatibleError(
+        Err(BWErr::OperationIncompatibleError(
             "The conditional expression in `If` should always evaluvate to boolean value".into(),
         ))
     }
@@ -558,7 +558,7 @@ fn stmt_block(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
             // TODO: results is lost. Think of something else.
             return Ok(interupt.literal);
         } else {
-            let result = oduraja(block, globals)?;
+            let result = botwork(block, globals)?;
             results.push(result);
         }
     }
@@ -569,21 +569,21 @@ fn stmt_for(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let mut inner = pair.into_inner();
     let ident = inner
         .next()
-        .ok_or(ORErr::ParsingError("Getting ident failed".into()))?;
+        .ok_or(BWErr::ParsingError("Getting ident failed".into()))?;
     let array = inner
         .next()
-        .ok_or(ORErr::ParsingError("Getting array failed".into()))?;
+        .ok_or(BWErr::ParsingError("Getting array failed".into()))?;
     let block = inner
         .next()
-        .ok_or(ORErr::ParsingError("Getting block failed".into()))?;
+        .ok_or(BWErr::ParsingError("Getting block failed".into()))?;
     if inner.next().is_some() {
         unreachable!("For statment still has unused pairs!");
     }
-    if let Literal::Array(array) = oduraja(array.clone(), globals)? {
+    if let Literal::Array(array) = botwork(array.clone(), globals)? {
         let mut results = vec![];
         for i in array {
             globals.set_variable(ident.as_str().to_string(), i);
-            let result = oduraja(block.clone(), globals)?;
+            let result = botwork(block.clone(), globals)?;
             results.push(result);
             let interupt = globals.pop_interupt();
             match interupt.kind {
@@ -599,7 +599,7 @@ fn stmt_for(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
         }
         Ok(Literal::Array(results))
     } else {
-        Err(ORErr::OperationIncompatibleError(format!(
+        Err(BWErr::OperationIncompatibleError(format!(
             "FOR loop requires array to iterate over. But found: {}",
             array
         )))
@@ -610,20 +610,20 @@ fn stmt_while(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let mut inner = pair.into_inner();
     let expr = inner
         .next()
-        .ok_or(ORErr::ParsingError("Getting ident failed".into()))?;
+        .ok_or(BWErr::ParsingError("Getting ident failed".into()))?;
     let block = inner
         .next()
-        .ok_or(ORErr::ParsingError("Getting block failed".into()))?;
+        .ok_or(BWErr::ParsingError("Getting block failed".into()))?;
     if inner.next().is_some() {
         unreachable!("While statment still has unused pairs!");
     }
     let mut results = vec![];
     loop {
-        if let Literal::Bool(should_loop) = oduraja(expr.clone(), globals)? {
+        if let Literal::Bool(should_loop) = botwork(expr.clone(), globals)? {
             if !should_loop {
                 return Ok(Literal::Array(results));
             }
-            let result = oduraja(block.clone(), globals)?;
+            let result = botwork(block.clone(), globals)?;
             results.push(result);
             let interupt = globals.pop_interupt();
             match interupt.kind {
@@ -638,7 +638,7 @@ fn stmt_while(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
             }
             return Ok(Literal::Array(results));
         } else {
-            return Err(ORErr::OperationIncompatibleError(
+            return Err(BWErr::OperationIncompatibleError(
                 "While loop requires expressions to return boolean".into(),
             ));
         }
@@ -649,29 +649,29 @@ fn stmt_try(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let mut inner = pair.into_inner();
     let try_block = inner
         .next()
-        .ok_or(ORErr::ParsingError("Getting try block failed".into()))?;
+        .ok_or(BWErr::ParsingError("Getting try block failed".into()))?;
     let catch_block = inner
         .next()
-        .ok_or(ORErr::ParsingError("Getting catch block failed".into()))?;
+        .ok_or(BWErr::ParsingError("Getting catch block failed".into()))?;
     if inner.next().is_some() {
         unreachable!("While statment still has unused pairs!");
     }
-    let try_result = oduraja(try_block, globals);
+    let try_result = botwork(try_block, globals);
     if try_result.is_ok() {
         try_result
     } else {
-        oduraja(catch_block, globals)
+        botwork(catch_block, globals)
     }
 }
 
 fn stmt_define(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let mut inner = pair.into_inner();
-    let stmt_header = inner.next().ok_or(ORErr::ParsingError(
+    let stmt_header = inner.next().ok_or(BWErr::ParsingError(
         "Getting statement header failed".into(),
     ))?;
     let stmt_block = inner
         .next()
-        .ok_or(ORErr::ParsingError("Getting statement block failed".into()))?;
+        .ok_or(BWErr::ParsingError("Getting statement block failed".into()))?;
     if inner.next().is_some() {
         unreachable!("Statement definition still has unused pairs!");
     }
@@ -686,7 +686,7 @@ fn stmt_return(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
             if inner.next().is_some() {
                 unreachable!("Return statement still has unused pairs!");
             }
-            let literal = oduraja(expr, globals)?;
+            let literal = botwork(expr, globals)?;
             globals.push_interupt_return(literal.clone());
             Ok(literal)
         }
@@ -697,11 +697,11 @@ fn stmt_return(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     }
 }
 
-fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
+fn botwork(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let op = match pair.as_rule() {
         Rule::EOI => no_op,
         Rule::WHITESPACE => todo!(),
-        Rule::oduraja => todo!(),
+        Rule::botwork => todo!(),
         Rule::reserved => todo!(),
         Rule::part => todo!(),
         Rule::statements => todo!(),
@@ -780,14 +780,14 @@ fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
 }
 
 fn main() {
-    let source = read_to_string("examples/02-syntaxes.oduraja").unwrap();
-    match parser::Parser::parse(Rule::oduraja, &source) {
+    let source = read_to_string("examples/02-syntaxes.botwork").unwrap();
+    match parser::Parser::parse(Rule::botwork, &source) {
         Ok(tree) => {
             let mut context = Context::default();
             context.init_statements();
             let mut results = Vec::new();
             for pair in tree {
-                match oduraja(pair, &mut context) {
+                match botwork(pair, &mut context) {
                     Ok(ok) => results.push(ok),
                     Err(err) => {
                         dbg!(err);
