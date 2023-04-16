@@ -51,17 +51,18 @@ log |a + 10|
 Custom Statements
 ###
 
-What is square-root of |number| divided by |divisor| equals? {
+# Declaration
+What is square-root of |number| divided by |divisor| equals, eh?!... {
 	|square| = |number ^ 2|
 	Return |square/divisor| 
 	Log |"This statement will never execute"|
 }
 
-|answer| = What is sQuAre-RoOt of |6| divided by |2| equals?
+# Invocation (case-insensitive)
+|answer| = WHAT is    sQuAre-RoOt of |6| divided by|2|equals, EH?!...
 
 Log |"Here is your answer:"|
 Log |answer|
-
 
 ###
 IF statments
