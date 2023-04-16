@@ -85,21 +85,24 @@ struct Interupt {
 }
 
 #[derive(Clone, Default)]
-enum StmtType<'a> {
+enum StmtType {
     #[default]
     None,
     Native(Callback),
-    Custom(Pair<'a, Rule>),
+    UserDefined {
+        header: String,
+        block: String,
+    },
 }
 
 #[derive(Clone, Default)]
-struct Context<'a> {
+struct Context {
     variables: HashMap<String, Literal>,
-    statements: HashMap<String, StmtType<'a>>,
+    statements: HashMap<String, StmtType>,
     interupt: Interupt,
 }
 
-impl Context<'_> {
+impl Context {
     fn get_variable(&self, name: &String) -> LiteralResult {
         match self.variables.get(name) {
             Some(value) => Ok(value.to_owned()),
@@ -124,8 +127,8 @@ impl Context<'_> {
         self.statements.contains_key(name)
     }
 
-    fn get_statement(&self, name: &String) -> Option<&StmtType<'_>> {
-        self.statements.get(name)
+    fn get_statement(&self, name: &String, statement: &mut Option<StmtType>) {
+        *statement = self.statements.get(name).cloned();
     }
 
     fn init_statements(&mut self) {
@@ -133,10 +136,20 @@ impl Context<'_> {
             .insert("log|param|".into(), StmtType::Native(log_param));
     }
 
+    /// TODO: Right now, this stringifies the header & block pair and parses everytimme
+    /// it is required to execute. As one might realize, this could degrade the persormance.
+    /// I was not able to push Pair<Rule> into the state because it had lot of lifetime to deal with.
+    /// I am new to rust and lifetimes is still a concept that I trying to grasp.
+    /// It soulw be awesome if somone could help me with this.
     fn push_statement(&mut self, stmt_header: Pair<Rule>, stmt_block: Pair<Rule>) {
         let stmt_hash = get_stmt_hash(&stmt_header);
-        self.statements
-            .insert(stmt_hash, StmtType::Custom(stmt_block));
+        self.statements.insert(
+            stmt_hash,
+            StmtType::UserDefined {
+                header: stmt_header.as_str().into(),
+                block: stmt_block.as_str().into(),
+            },
+        );
     }
 
     fn push_interupt(&mut self, interupt: Interupt) {
@@ -175,6 +188,10 @@ impl Context<'_> {
         }
     }
 
+    fn has_return_interupt(&self) -> bool {
+        matches!(self.interupt.kind, InteruptKind::Return)
+    }
+
     fn pop_interupt(&mut self) -> Interupt {
         let interupt = self.interupt.clone();
         self.interupt.literal = Literal::None; // Just in case
@@ -196,7 +213,7 @@ fn get_stmt_hash(pair: &Pair<Rule>) -> String {
     for pair in pair.clone().into_inner() {
         match pair.as_rule() {
             Rule::part => hash.push_str(&hashify(pair.as_str())),
-            Rule::param_invoke | Rule::param_define => hash.push_str("|param|"),
+            Rule::param_invoke | Rule::ident => hash.push_str("|param|"),
             _ => unreachable!(),
         }
     }
@@ -225,15 +242,42 @@ fn stmt_invoke(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     if !globals.contains_statement(&hash) {
         return Err(ORErr::StatementNotDefined(pair.as_str().into()));
     }
-    let statement = globals
-        .get_statement(&hash)
-        .ok_or(ORErr::VariableNotDefined(pair.as_str().into()))?;
+    let mut statement: Option<StmtType> = None;
+    globals.get_statement(&hash, &mut statement);
+    let statement = statement.ok_or(ORErr::VariableNotDefined(pair.as_str().into()))?;
     match statement {
         StmtType::None => unreachable!("None is just a default!"),
         StmtType::Native(statement) => statement(pair, globals),
-        StmtType::Custom(statement) => {
+        StmtType::UserDefined { header, block } => {
             //TODO: Zip parameter names from header & insert it onto globals
-            oduraja(statement, globals)
+            let mut header = parser::Parser::parse(Rule::stmt_header, &header)
+                .map_err(|_| ORErr::ParsingError("Parsing cached header failed".into()))?;
+            let mut block = parser::Parser::parse(Rule::stmt_block, &block)
+                .map_err(|_| ORErr::ParsingError("Parsing cached block failed".into()))?;
+            let stmt_header = header
+                .next()
+                .ok_or(ORErr::ParsingError("No header pair found in Pairs".into()))?;
+            let stmt_block = block
+                .next()
+                .ok_or(ORErr::ParsingError("No Block pair found in Pairs".into()))?;
+            if header.count() != 0 || block.count() != 0 {
+                return Err(ORErr::ParsingError(
+                    "More cached header/block pair found!".into(),
+                ));
+            }
+            let idents = stmt_header
+                .into_inner()
+                .filter(|pair| pair.as_rule() == Rule::ident);
+            // .collect::<Vec<Pair<Rule>>>();
+            let param_invoks = pair
+                .into_inner()
+                .filter(|pair| pair.as_rule() == Rule::param_invoke);
+            // .collect::<Vec<Pair<Rule>>>();
+            for (ident, param_invoke) in idents.zip(param_invoks) {
+                let literal = oduraja(param_invoke, globals)?;
+                globals.set_variable(ident.as_str().into(), literal);
+            }
+            oduraja(stmt_block, globals)
         }
     }
 }
@@ -509,6 +553,10 @@ fn stmt_block(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
             return Ok(Literal::Array(results));
         } else if globals.has_loop_interupt() {
             return Ok(Literal::Array(results));
+        } else if globals.has_return_interupt() {
+            let interupt = globals.pop_interupt();
+            // TODO: results is lost. Think of something else.
+            return Ok(interupt.literal);
         } else {
             let result = oduraja(block, globals)?;
             results.push(result);
@@ -631,6 +679,24 @@ fn stmt_define(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     Ok(Literal::None)
 }
 
+fn stmt_return(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
+    let mut inner = pair.into_inner();
+    match inner.next() {
+        Some(expr) => {
+            if inner.next().is_some() {
+                unreachable!("Return statement still has unused pairs!");
+            }
+            let literal = oduraja(expr, globals)?;
+            globals.push_interupt_return(literal.clone());
+            Ok(literal)
+        }
+        None => {
+            globals.push_interupt_return(Literal::None);
+            Ok(Literal::None)
+        }
+    }
+}
+
 fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let op = match pair.as_rule() {
         Rule::EOI => no_op,
@@ -704,7 +770,7 @@ fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
         Rule::stmt_catch => stmt_block,
         Rule::stmt_break => todo!(),
         Rule::stmt_continue => todo!(),
-        Rule::stmt_return => todo!(),
+        Rule::stmt_return => stmt_return,
         Rule::primary => todo!(),
         Rule::seperator => no_op,
         Rule::stmt_block => stmt_block,
