@@ -48,6 +48,22 @@ log |a + 10|
 
 
 ###
+Custom Statements
+###
+
+What is square-root of |number| divided by |divisor| equals? {
+	|square| = |number ^ 2|
+	Return |square/divisor| 
+	Log |"This statement will never execute"|
+}
+
+|answer| = What is sQuAre-RoOt of |6| divided by |2| equals?
+
+Log |"Here is your answer:"|
+Log |answer|
+
+
+###
 IF statments
 ###
 
@@ -128,19 +144,3 @@ Try {
 } Catch {
     Log |"This will always execute"|
 }
-
-
-###
-Custom Statements
-###
-
-What is square-root of |number| divided by |divisor| equals? {
-	|square| = |number ^ 2|
-	Return |square/divisor| 
-	Log |"This statement will never execute"|
-}
-
-|answer| = What is square-root of |6| divided by |2| equals?
-
-Log |"Here is your answer:"|
-Log |answer|
