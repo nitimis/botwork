@@ -27,6 +27,7 @@ lazy_static::lazy_static! {
             | Op::infix(greater_than_or_equal, Left)
             | Op::infix(not_equal, Left)
             | Op::infix(equal, Left)
+            | Op::infix(exponent, Left)
         )
     };
 }
@@ -84,13 +85,21 @@ struct Interupt {
 }
 
 #[derive(Clone, Default)]
-struct Context {
+enum StmtType<'a> {
+    #[default]
+    None,
+    Native(Callback),
+    Custom(Pair<'a, Rule>),
+}
+
+#[derive(Clone, Default)]
+struct Context<'a> {
     variables: HashMap<String, Literal>,
-    statements: HashMap<String, Callback>,
+    statements: HashMap<String, StmtType<'a>>,
     interupt: Interupt,
 }
 
-impl Context {
+impl Context<'_> {
     fn get_variable(&self, name: &String) -> LiteralResult {
         match self.variables.get(name) {
             Some(value) => Ok(value.to_owned()),
@@ -115,12 +124,19 @@ impl Context {
         self.statements.contains_key(name)
     }
 
-    fn get_statement(&self, name: &String) -> Option<&Callback> {
+    fn get_statement(&self, name: &String) -> Option<&StmtType<'_>> {
         self.statements.get(name)
     }
 
-    fn init_statement(&mut self) {
-        self.statements.insert("log|param|".into(), log_param);
+    fn init_statements(&mut self) {
+        self.statements
+            .insert("log|param|".into(), StmtType::Native(log_param));
+    }
+
+    fn push_statement(&mut self, stmt_header: Pair<Rule>, stmt_block: Pair<Rule>) {
+        let stmt_hash = get_stmt_hash(&stmt_header);
+        self.statements
+            .insert(stmt_hash, StmtType::Custom(stmt_block));
     }
 
     fn push_interupt(&mut self, interupt: Interupt) {
@@ -212,7 +228,14 @@ fn stmt_invoke(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let statement = globals
         .get_statement(&hash)
         .ok_or(ORErr::VariableNotDefined(pair.as_str().into()))?;
-    statement(pair, globals)
+    match statement {
+        StmtType::None => unreachable!("None is just a default!"),
+        StmtType::Native(statement) => statement(pair, globals),
+        StmtType::Custom(statement) => {
+            //TODO: Zip parameter names from header & insert it onto globals
+            oduraja(statement, globals)
+        }
+    }
 }
 
 trait Operate {
@@ -313,6 +336,12 @@ impl Operate for Rule {
                 (Float(a), Float(b)) => Ok(Bool(a == b)),
                 (Bool(a), Bool(b)) => Ok(Bool(a == b)),
                 (String(a), String(b)) => Ok(Bool(a == b)),
+                _ => err,
+            },
+
+            exponent => match (lhs, rhs) {
+                (Int(a), Int(b)) => Ok(Int(a.pow(b as u32))),
+                (Float(a), Int(b)) => Ok(Float(a.powf(b as f32))),
                 _ => err,
             },
             logical_and => match (lhs, rhs) {
@@ -587,6 +616,21 @@ fn stmt_try(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     }
 }
 
+fn stmt_define(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
+    let mut inner = pair.into_inner();
+    let stmt_header = inner.next().ok_or(ORErr::ParsingError(
+        "Getting statement header failed".into(),
+    ))?;
+    let stmt_block = inner
+        .next()
+        .ok_or(ORErr::ParsingError("Getting statement block failed".into()))?;
+    if inner.next().is_some() {
+        unreachable!("Statement definition still has unused pairs!");
+    }
+    globals.push_statement(stmt_header, stmt_block);
+    Ok(Literal::None)
+}
+
 fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let op = match pair.as_rule() {
         Rule::EOI => no_op,
@@ -596,7 +640,7 @@ fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
         Rule::part => todo!(),
         Rule::statements => todo!(),
         Rule::stmt_invoke => stmt_invoke,
-        Rule::stmt_define => todo!(),
+        Rule::stmt_define => stmt_define,
         Rule::stmt_assign => stmt_assign,
         Rule::param_invoke => pratt_parse,
         Rule::param_define => todo!(),
@@ -664,6 +708,7 @@ fn oduraja(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
         Rule::primary => todo!(),
         Rule::seperator => no_op,
         Rule::stmt_block => stmt_block,
+        Rule::stmt_header => todo!(),
     };
     op(pair, globals)
 }
@@ -673,7 +718,7 @@ fn main() {
     match parser::Parser::parse(Rule::oduraja, &source) {
         Ok(tree) => {
             let mut context = Context::default();
-            context.init_statement();
+            context.init_statements();
             let mut results = Vec::new();
             for pair in tree {
                 match oduraja(pair, &mut context) {
