@@ -2,8 +2,17 @@
 name = "botwork"
 version = "0.1.0"
 edition = "2021"
+license-file = "LICENSE"
+license = "MIT"
+description = "botwork is a single-binary, generic and open-source automation framework written in Rust for acceptance testing, acceptance test driven development (ATDD), and robotic process automation (RPA). The syntax is basically plain text (in any human lanuage) with parameters. Easily extendible with Rust, Python & JavaScript. An efficient, fast alternative to Robot Framework."
+documentation = "https://docs.rs/botwork"
+homepage = "https://github.com/nitimis/botwork"
+repository = "https://github.com/nitimis/botwork"
+readme = "README.md"
+keywords = ["botwork", "robotframework", "acceptance", "testing", "ATDD", "rpa", "robotic process automation"]
+categories = ["science::robotics", "development-tools", "development-tools::testing"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
 
 [dependencies]
 lazy_static = "1.4.0"
