@@ -1,71 +1,9 @@
-mod parser {
-    use pest_derive::Parser;
+mod parser;
 
-    #[derive(Parser)]
-    #[grammar = "src/main.pest"]
-    pub struct Parser;
-}
-
-use parser::Rule;
-use pest::{iterators::Pair, pratt_parser::PrattParser, Parser};
+use parser::{BWErr, BWParser, Literal, LiteralResult, Operate, Rule, PRATT_PARSER};
+use pest::iterators::Pair;
+use pest::Parser;
 use std::{cell::RefCell, collections::HashMap, fs::read_to_string, rc::Rc};
-
-use thiserror::Error;
-
-lazy_static::lazy_static! {
-    static ref PRATT_PARSER: PrattParser<Rule> = {
-        use pest::pratt_parser::{Assoc::*, Op};
-        use Rule::*;
-        PrattParser::new()
-            .op(Op::infix(plus, Left) | Op::infix(minus, Left) | Op::infix(logical_or, Left) )
-            .op(Op::infix(multiply, Left) | Op::infix(divide, Left) | Op::infix(modulus, Left) |Op::infix(logical_and, Left) )
-            .op(Op::prefix(minus) | Op::prefix(logical_not))
-            .op(
-            Op::infix(less_than, Left)
-            | Op::infix(less_than_or_equal, Left)
-            | Op::infix(greater_than, Left)
-            | Op::infix(greater_than_or_equal, Left)
-            | Op::infix(not_equal, Left)
-            | Op::infix(equal, Left)
-            | Op::infix(exponent, Left)
-        )
-    };
-}
-
-/// botwork Err
-#[derive(Error, Debug)]
-pub enum BWErr {
-    #[error("Variable not defined")]
-    VariableNotDefined(String),
-    #[error("Statement not defined")]
-    StatementNotDefined(String),
-    #[error("Parameter missing error")]
-    ParameterMissingError(String),
-    #[error("Parsing integer error")]
-    ParsingError(String),
-    #[error("Parsing integer error")]
-    ParsingIntegerError(String),
-    #[error("Nested error")]
-    NestedError(String),
-    #[error("Operation performed on incompatible types")]
-    OperationIncompatibleError(String),
-    #[error("Operator not found")]
-    OperatorNotFoundError(String),
-    #[error("Operands not found")]
-    OperandsNotFound(String),
-}
-
-#[derive(Clone, Debug, Default)]
-enum Literal {
-    #[default]
-    None,
-    Int(i32),
-    Float(f32),
-    Bool(bool),
-    String(String),
-    Array(Vec<Literal>),
-    Map(HashMap<String, Literal>),
-}
 
 #[derive(Clone, Debug, Default, PartialEq)]
 enum InteruptKind {
@@ -200,8 +138,6 @@ impl Context {
     }
 }
 
-type ORResult<O, E = BWErr> = Result<O, E>;
-type LiteralResult = ORResult<Literal>;
 type Callback = fn(Pair<Rule>, &mut Context) -> LiteralResult;
 
 fn hashify(text: &str) -> String {
@@ -250,9 +186,9 @@ fn stmt_invoke(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
         StmtType::Native(statement) => statement(pair, globals),
         StmtType::UserDefined { header, block } => {
             //TODO: Zip parameter names from header & insert it onto globals
-            let mut header = parser::Parser::parse(Rule::stmt_header, &header)
+            let mut header = BWParser::parse(Rule::stmt_header, &header)
                 .map_err(|_| BWErr::ParsingError("Parsing cached header failed".into()))?;
-            let mut block = parser::Parser::parse(Rule::stmt_block, &block)
+            let mut block = BWParser::parse(Rule::stmt_block, &block)
                 .map_err(|_| BWErr::ParsingError("Parsing cached block failed".into()))?;
             let stmt_header = header
                 .next()
@@ -278,142 +214,6 @@ fn stmt_invoke(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
                 globals.set_variable(ident.as_str().into(), literal);
             }
             botwork(stmt_block, globals)
-        }
-    }
-}
-
-trait Operate {
-    fn operate_unary(&self, rhs: Literal) -> LiteralResult;
-    fn operate_binary(&self, lhs: Literal, rhs: Literal) -> LiteralResult;
-}
-
-impl Operate for Rule {
-    fn operate_binary(&self, lhs: Literal, rhs: Literal) -> LiteralResult {
-        let err = format!("{:?} {:?} {:?}", lhs, self, rhs);
-        let err = Err(BWErr::OperationIncompatibleError(err));
-        use Literal::*;
-        use Rule::*;
-        match self {
-            // Arithmatic Operations
-            multiply => match (lhs, rhs) {
-                (Int(a), Int(b)) => Ok(Int(a * b)),
-                (Float(a), Int(b)) => Ok(Float(a * b as f32)),
-                (Int(a), Float(b)) => Ok(Float(a as f32 * b)),
-                (Float(a), Float(b)) => Ok(Float(a * b)),
-                _ => err,
-            },
-            divide => match (lhs, rhs) {
-                (Int(a), Int(b)) => Ok(Float(a as f32 / b as f32)),
-                (Float(a), Int(b)) => Ok(Float(a / b as f32)),
-                (Int(a), Float(b)) => Ok(Float(a as f32 / b)),
-                (Float(a), Float(b)) => Ok(Float(a / b)),
-                _ => err,
-            },
-            modulus => match (lhs, rhs) {
-                (Int(a), Int(b)) => Ok(Int(a % b)),
-                (Float(a), Int(b)) => Ok(Float(a % b as f32)),
-                (Int(a), Float(b)) => Ok(Float(a as f32 % b)),
-                (Float(a), Float(b)) => Ok(Float(a % b)),
-                _ => err,
-            },
-            plus => match (lhs, rhs) {
-                (Int(a), Int(b)) => Ok(Int(a + b)),
-                (Float(a), Int(b)) => Ok(Float(a + b as f32)),
-                (Int(a), Float(b)) => Ok(Float(a as f32 + b)),
-                (Float(a), Float(b)) => Ok(Float(a + b)),
-                (String(a), String(b)) => Ok(String(format!("{}{}", a, b))),
-                (Array(a), Array(b)) => {
-                    Ok(Array(a.iter().cloned().chain(b.iter().cloned()).collect()))
-                }
-                _ => err,
-            },
-            minus => match (lhs, rhs) {
-                (Int(a), Int(b)) => Ok(Int(a - b)),
-                (Float(a), Int(b)) => Ok(Float(a - b as f32)),
-                (Int(a), Float(b)) => Ok(Float(a as f32 - b)),
-                (Float(a), Float(b)) => Ok(Float(a - b)),
-                _ => err,
-            },
-
-            // Binary Operations
-            less_than => match (lhs, rhs) {
-                (Int(a), Int(b)) => Ok(Bool(a < b)),
-                (Float(a), Int(b)) => Ok(Bool(a < b as f32)),
-                (Int(a), Float(b)) => Ok(Bool((a as f32) < b)),
-                (Float(a), Float(b)) => Ok(Bool(a < b)),
-                _ => err,
-            },
-            less_than_or_equal => match (lhs, rhs) {
-                (Int(a), Int(b)) => Ok(Bool(a <= b)),
-                (Float(a), Int(b)) => Ok(Bool(a <= b as f32)),
-                (Int(a), Float(b)) => Ok(Bool((a as f32) <= b)),
-                (Float(a), Float(b)) => Ok(Bool(a <= b)),
-                _ => err,
-            },
-            greater_than => match (lhs, rhs) {
-                (Int(a), Int(b)) => Ok(Bool(a > b)),
-                (Float(a), Int(b)) => Ok(Bool(a > b as f32)),
-                (Int(a), Float(b)) => Ok(Bool((a as f32) > b)),
-                (Float(a), Float(b)) => Ok(Bool(a > b)),
-                _ => err,
-            },
-            greater_than_or_equal => match (lhs, rhs) {
-                (Int(a), Int(b)) => Ok(Bool(a >= b)),
-                (Float(a), Int(b)) => Ok(Bool(a >= b as f32)),
-                (Int(a), Float(b)) => Ok(Bool((a as f32) >= b)),
-                (Float(a), Float(b)) => Ok(Bool(a >= b)),
-                _ => err,
-            },
-            not_equal => match (lhs, rhs) {
-                (Int(a), Int(b)) => Ok(Bool(a != b)),
-                (Float(a), Int(b)) => Ok(Bool(a != b as f32)),
-                (Int(a), Float(b)) => Ok(Bool((a as f32) != b)),
-                (Float(a), Float(b)) => Ok(Bool(a != b)),
-                (Bool(a), Bool(b)) => Ok(Bool(a != b)),
-                (String(a), String(b)) => Ok(Bool(a != b)),
-                _ => err,
-            },
-            equal => match (lhs, rhs) {
-                (Int(a), Int(b)) => Ok(Bool(a == b)),
-                (Float(a), Int(b)) => Ok(Bool(a == b as f32)),
-                (Int(a), Float(b)) => Ok(Bool((a as f32) == b)),
-                (Float(a), Float(b)) => Ok(Bool(a == b)),
-                (Bool(a), Bool(b)) => Ok(Bool(a == b)),
-                (String(a), String(b)) => Ok(Bool(a == b)),
-                _ => err,
-            },
-
-            exponent => match (lhs, rhs) {
-                (Int(a), Int(b)) => Ok(Int(a.pow(b as u32))),
-                (Float(a), Int(b)) => Ok(Float(a.powf(b as f32))),
-                _ => err,
-            },
-            logical_and => match (lhs, rhs) {
-                (Bool(a), Bool(b)) => Ok(Bool(a && b)),
-                _ => err,
-            },
-            logical_or => match (lhs, rhs) {
-                (Bool(a), Bool(b)) => Ok(Bool(a || b)),
-                _ => err,
-            },
-            _ => err,
-        }
-    }
-
-    fn operate_unary(&self, rhs: Literal) -> LiteralResult {
-        let err = format!("{:?} {:?}", self, rhs);
-        let err = Err(BWErr::OperationIncompatibleError(err));
-        match self {
-            Rule::minus => match rhs {
-                Literal::Int(a) => Ok(Literal::Int(-a)),
-                Literal::Float(a) => Ok(Literal::Float(-a)),
-                _ => err,
-            },
-            Rule::logical_not => match rhs {
-                Literal::Bool(a) => Ok(Literal::Bool(!a)),
-                _ => err,
-            },
-            _ => err,
         }
     }
 }
@@ -700,88 +500,39 @@ fn stmt_return(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
 fn botwork(pair: Pair<Rule>, globals: &mut Context) -> LiteralResult {
     let op = match pair.as_rule() {
         Rule::EOI => no_op,
-        Rule::WHITESPACE => todo!(),
-        Rule::botwork => todo!(),
-        Rule::reserved => todo!(),
-        Rule::part => todo!(),
-        Rule::statements => todo!(),
         Rule::stmt_invoke => stmt_invoke,
         Rule::stmt_define => stmt_define,
         Rule::stmt_assign => stmt_assign,
         Rule::param_invoke => pratt_parse,
-        Rule::param_define => todo!(),
-        Rule::COMMENT => todo!(),
-        Rule::comment_block => todo!(),
-        Rule::comment_line => todo!(),
         Rule::expression => pratt_parse,
-        Rule::infix => todo!(),
-        Rule::expression_inner => todo!(),
         Rule::unary => pratt_parse,
-        Rule::dot_path => todo!(),
-        Rule::literal => todo!(),
         Rule::array => array,
         Rule::ident => ident,
         Rule::map => map,
-        Rule::map_pair => todo!(),
         Rule::keyword => string,
         Rule::integer => integer,
         Rule::float => float,
         Rule::string => string,
-        Rule::string_content => todo!(),
-        Rule::string_delimiter => todo!(),
-        Rule::string_escape => todo!(),
-        Rule::braced_expression => todo!(),
-        Rule::exponent => todo!(),
-        Rule::multiply => todo!(),
-        Rule::divide => todo!(),
-        Rule::modulus => todo!(),
-        Rule::plus => todo!(),
-        Rule::minus => no_op,
-        Rule::less_than => todo!(),
-        Rule::less_than_or_equal => todo!(),
-        Rule::greater_than => todo!(),
-        Rule::greater_than_or_equal => todo!(),
-        Rule::not_equal => todo!(),
-        Rule::equal => todo!(),
-        Rule::logical_and => todo!(),
-        Rule::logical_or => todo!(),
         Rule::logical_not => no_op,
-        Rule::binary_operator => todo!(),
-        Rule::unary_operator => todo!(),
-        Rule::boolean => todo!(),
         Rule::boolean_true => boolean_true,
         Rule::boolean_false => boolean_false,
-        Rule::IF => todo!(),
-        Rule::ELSE => todo!(),
-        Rule::FOR => todo!(),
-        Rule::BREAK => todo!(),
-        Rule::RETURN => todo!(),
-        Rule::CONTINUE => todo!(),
-        Rule::WHILE => todo!(),
-        Rule::TRY => todo!(),
-        Rule::CATCH => todo!(),
         Rule::stmt_if => stmt_if,
         Rule::stmt_else => stmt_block,
-        Rule::reserved_parts => todo!(),
-        Rule::IN => todo!(),
         Rule::stmt_for => stmt_for,
         Rule::stmt_while => stmt_while,
         Rule::stmt_try => stmt_try,
         Rule::stmt_catch => stmt_block,
-        Rule::stmt_break => todo!(),
-        Rule::stmt_continue => todo!(),
         Rule::stmt_return => stmt_return,
-        Rule::primary => todo!(),
         Rule::seperator => no_op,
         Rule::stmt_block => stmt_block,
-        Rule::stmt_header => todo!(),
+        _ => unreachable!(),
     };
     op(pair, globals)
 }
 
 fn main() {
     let source = read_to_string("examples/02-syntaxes.botwork").unwrap();
-    match parser::Parser::parse(Rule::botwork, &source) {
+    match BWParser::parse(Rule::botwork, &source) {
         Ok(tree) => {
             let mut context = Context::default();
             context.init_statements();
