@@ -89,3 +89,4 @@ If there is interest out there for a tool like botwork, I plan to dedicate more 
   - [ ] Ability to pass variables from CLI / Files
   - [ ] Run in parallel
 - [ ] Fully async, non-blocking operations
+- [ ] Refactor my crappy code :P 
