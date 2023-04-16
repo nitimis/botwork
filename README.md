@@ -20,6 +20,14 @@ I wanted:
 1. Most of all, to have fun building something that I can introduce to my kids.
 
 
+# Getting Started
+
+1. Clone the repo
+2. run `cargo run -- --file examples/02-syntaxes.botwork`
+
+Or you can create a file from below sample and pass the path to cargo run
+
+
 # Sample Code
 
 Here is what a botwork script might looke like right now

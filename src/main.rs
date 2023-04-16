@@ -2,11 +2,22 @@ use botwork::core::{
     eval::{botwork, Context},
     grammar::{BWParser, Rule},
 };
+use clap::Parser as Clap;
 use pest::Parser;
-use std::fs::read_to_string;
+use std::{fs::read_to_string, path::PathBuf};
 
-fn main() {
-    let source = read_to_string("examples/02-syntaxes.botwork").unwrap();
+/// Simple program to greet a person
+#[derive(Clap, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Name of the botwork file to run
+    #[arg(short, long)]
+    file: PathBuf,
+}
+
+fn main() -> Result<(), std::io::Error> {
+    let args = Args::parse();
+    let source = read_to_string(args.file)?;
     match BWParser::parse(Rule::botwork, &source) {
         Ok(tree) => {
             let mut context = Context::default();
@@ -27,4 +38,5 @@ fn main() {
             println!("Failed parsing input: {:}", err);
         }
     };
+    Ok(())
 }

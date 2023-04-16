@@ -18,6 +18,7 @@ name = "botwork"
 name = "botwork"
 
 [dependencies]
+clap = { version = "4.2.2", features = ["derive"] }
 lazy_static = "1.4.0"
 log = "0.4.17"
 pest = "2.5.7"
