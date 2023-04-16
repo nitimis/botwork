@@ -45,7 +45,7 @@ botwork is just taking its baby steps. There are so many things that are still m
 
 If there is interest out there for a tool like botwork, I plan to dedicate more time to make v1.0 happen. So here is a bunch of things that needs to be done before botwork can be tagged v1.0:
 
- - [ ] Basic syntax
+- [ ] Basic syntax
   - [x] Statements
   - [x] If condition
   - [x] For & While loop
